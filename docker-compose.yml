@@ -1,0 +1,63 @@
+services:
+  auth:
+    build:
+      context: ./services/auth
+    image: learn-go/auth:local
+    env_file:
+      - ./services/auth/.env
+    ports:
+      - "8484:8484"
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  task-tracker:
+    build:
+      context: ./services/task-tracker
+    image: learn-go/task-tracker:local
+    env_file:
+      - ./services/task-tracker/.env
+    ports:
+      - "8485:8485"
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  expense-tracker:
+    build:
+      context: ./services/expense-tracker
+    image: learn-go/expense-tracker:local
+    env_file:
+      - ./services/expense-tracker/.env
+    ports:
+      - "8486:8486"
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  kong:
+    image: kong:3.9
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /kong/declarative/kong.yml
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001
+    ports:
+      - "8000:8000"
+      - "8001:8001"
+    volumes:
+      - ./kong/kong.yml:/kong/declarative/kong.yml:ro
+    depends_on:
+      - auth
+      - task-tracker
+      - expense-tracker
+    networks:
+      - app-network
+    restart: unless-stopped
+
+networks:
+  app-network:
+    driver: bridge

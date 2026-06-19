@@ -1,0 +1,27 @@
+_format_version: "3.0"
+_transform: true
+
+services:
+  - name: auth-service
+    url: http://auth:8484
+    routes:
+      - name: auth-route
+        paths:
+          - /auth
+        strip_path: true
+
+  - name: task-tracker-service
+    url: http://task-tracker:8485
+    routes:
+      - name: task-tracker-route
+        paths:
+          - /tasks
+        strip_path: true
+
+  - name: expense-tracker-service
+    url: http://expense-tracker:8486
+    routes:
+      - name: expense-tracker-route
+        paths:
+          - /expenses
+        strip_path: true

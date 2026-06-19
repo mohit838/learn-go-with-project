@@ -33,7 +33,7 @@ type Cfg struct {
 
 func LoadConfig(path string) (Cfg, error) {
 	err := godotenv.Load(path)
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
 		return Cfg{}, err
 	}
 
