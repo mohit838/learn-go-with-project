@@ -9,7 +9,7 @@ import (
 )
 
 func TestRootAndNotFoundResponses(t *testing.T) {
-	handler := NewRouter(nil, slog.New(slog.NewJSONHandler(&bytes.Buffer{}, nil)))
+	handler := NewRouter(nil, slog.New(slog.NewJSONHandler(&bytes.Buffer{}, nil)), nil, nil)
 
 	rootRequest := httptest.NewRequest(http.MethodGet, "/", nil)
 	rootResponse := httptest.NewRecorder()
