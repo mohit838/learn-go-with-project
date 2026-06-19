@@ -123,3 +123,18 @@ versioned contract.
 - Add integration tests with disposable local dependencies.
 - Document environment variables, migrations, and API examples for every
   completed milestone.
+
+## 11. Go Concurrency And Graceful Shutdown
+
+- Learn when a goroutine helps and when ordinary synchronous code is clearer.
+- Use channels for worker pools, bounded queues, and explicit ownership of work.
+- Propagate `context.Context` cancellation and deadlines to every blocking call.
+- Replace basic `http.ListenAndServe` startup with signal-aware graceful
+  shutdown, then close database and messaging clients in a predictable order.
+- Practice race detection with `go test -race ./...`.
+
+Start with [Go Concurrency: A Friendly Microservice Study Guide](go-concurrency.md).
+
+**Done when:** each service shuts down on `SIGTERM` without abandoning
+in-flight work, and a small worker-pool exercise has cancellation and race-test
+coverage.
