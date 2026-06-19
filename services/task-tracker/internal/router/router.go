@@ -2,29 +2,32 @@ package router
 
 import (
 	"database/sql"
+	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/mohit838/learn-go-with-project/internal/constants"
+	appLogger "github.com/mohit838/learn-go-with-project/internal/logger"
+	"github.com/mohit838/learn-go-with-project/internal/response"
 )
 
-func NewRouter(db *sql.DB) http.Handler {
+func NewRouter(db *sql.DB, log *slog.Logger) http.Handler {
 	r := chi.NewRouter()
 
-	// A good base middleware stack
 	r.Use(middleware.RequestID)
 	r.Use(middleware.ClientIPFromRemoteAddr)
-	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)
-
-	// Set a timeout value on the request context (ctx), that will signal
-	// through ctx.Done() that the request has timed out and further
-	// processing should be stopped.
+	r.Use(appLogger.RequestLogger(log))
+	r.Use(appLogger.Recovery(log))
 	r.Use(middleware.Timeout(60 * time.Second))
 
-	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Task Tracker Service API is running!"))
+	registerAppAPI(r, "task-tracker-service")
+	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
+		response.Error(w, http.StatusNotFound, constants.ErrorNotFound, "route not found")
+	})
+	r.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) {
+		response.Error(w, http.StatusMethodNotAllowed, constants.ErrorMethodNotAllowed, "method not allowed")
 	})
 
 	return r

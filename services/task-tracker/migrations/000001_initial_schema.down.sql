@@ -1,0 +1,1 @@
+-- No schema objects were created by the initial Task Tracker service migration.

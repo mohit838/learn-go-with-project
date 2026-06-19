@@ -3,10 +3,10 @@
 This is the recommended order for growing this project. Complete one milestone
 and test it before starting the next one.
 
-## 1. Application Foundation
+## 1. Application Foundation (Completed)
 
 - Add an `internal/constants` package for shared application constants.
-- Add a small `internal/utils` package only for genuinely reusable helpers.
+- Add a small `internal/utils` package only when a genuinely reusable helper appears.
 - Define a consistent JSON response shape for successful data and errors.
 - Add a central API route list, for example `internal/router/app_api.go`, so all
   endpoint registration is easy to find.
@@ -14,7 +14,7 @@ and test it before starting the next one.
 **Done when:** every endpoint returns the same response envelope and routes are
 registered from one clear place per service.
 
-## 2. Structured Logging
+## 2. Structured Logging (Completed)
 
 - Replace `fmt.Println` and the default logger with structured logs.
 - Include request ID, service name, method, path, status, duration, and error.
@@ -23,7 +23,7 @@ registered from one clear place per service.
 **Done when:** a failed request can be traced from the gateway log to the Go
 service log.
 
-## 3. Database Migrations
+## 3. Database Migrations (Completed)
 
 - Add a migration tool and a `cmd/migrate/main.go` entry point per service.
 - Add `migrations/` folders with ordered SQL files such as

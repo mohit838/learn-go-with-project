@@ -1,0 +1,2 @@
+-- Reserve the first migration version for the Auth service schema.
+-- The next milestone adds the users table in a new migration.

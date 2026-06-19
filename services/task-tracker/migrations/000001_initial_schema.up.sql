@@ -1,0 +1,2 @@
+-- Reserve the first migration version for the Task Tracker service schema.
+-- Feature tables are introduced by later migrations.

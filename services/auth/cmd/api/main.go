@@ -1,47 +1,38 @@
 package main
 
 import (
-	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
+	"os"
 
 	"github.com/mohit838/learn-go-with-project/internal/config"
 	"github.com/mohit838/learn-go-with-project/internal/database"
+	appLogger "github.com/mohit838/learn-go-with-project/internal/logger"
 	"github.com/mohit838/learn-go-with-project/internal/router"
 )
 
 func main() {
-	// This is the Auth Service API
-	fmt.Println("This is the Auth Service API")
-
-	// Load environment variables
 	cfg, err := config.LoadConfig("./.env")
 	if err != nil {
-		log.Println("Error loading config:", err)
-		return
+		slog.Error("load config", "error", err)
+		os.Exit(1)
 	}
 
-	fmt.Println("App Name:", cfg.AppName)
-	fmt.Println("App Env:", cfg.AppEnv)
-	fmt.Println("App Port:", cfg.AppPort)
-	fmt.Println("Debug Mode:", cfg.AppDebug)
+	logger := appLogger.New(cfg.LogLevel).With("service", cfg.AppName)
 
-	// Database connection
 	db, err := database.ConnectDB(cfg.DBURL)
 	if err != nil {
-		log.Fatalf("error connecting database: %v", err)
+		logger.Error("connect database", "error", err)
+		os.Exit(1)
 	}
 	defer db.Close()
-	log.Println("DB is connected")
+	logger.Info("database connected")
 
-	// App routers
-	handler := router.NewRouter(db)
-
-	// start the server and check port
-	log.Printf("Server is running on port %s\n", cfg.AppPort)
+	handler := router.NewRouter(db, logger)
 	port := ":" + cfg.AppPort
+	logger.Info("server started", "port", cfg.AppPort, "environment", cfg.AppEnv)
 	err = http.ListenAndServe(port, handler)
 	if err != nil {
-		log.Fatalf("server failed: %v", err)
+		logger.Error("server stopped", "error", err)
 	}
 }
