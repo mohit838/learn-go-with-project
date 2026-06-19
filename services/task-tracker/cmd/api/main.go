@@ -5,9 +5,9 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 	"github.com/mohit838/learn-go-with-project/internal/config"
+	"github.com/mohit838/learn-go-with-project/internal/database"
+	"github.com/mohit838/learn-go-with-project/internal/router"
 )
 
 func main() {
@@ -26,24 +26,22 @@ func main() {
 	fmt.Println("App Port:", cfg.AppPort)
 	fmt.Println("Debug Mode:", cfg.AppDebug)
 
-	// Initialize database connection (later)
-	// Initialize Redis connection (later)
-
-	// Set up routes and handlers
-	r := chi.NewRouter()
-	r.Use(middleware.Logger)
-	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Task Tracker API is running!"))
-	})
-
-	// Start the server
-	appPort := cfg.AppPort
-	if appPort == "" {
-		log.Fatal("Port is not specified")
+	// Database connection
+	db, err := database.ConnectDB(cfg.DBURL)
+	if err != nil {
+		log.Fatalf("error connecting database: %v", err)
 	}
+	defer db.Close()
+	log.Println("DB is connected")
 
-	fmt.Printf("Starting server on port %s...\n", appPort)
-	if err := http.ListenAndServe(":"+appPort, r); err != nil {
-		log.Fatal("Server failed:", err)
+	// App routers
+	handler := router.NewRouter(db)
+
+	// start the server and check port
+	log.Printf("Server is running on port %s\n", cfg.AppPort)
+	port := ":" + cfg.AppPort
+	err = http.ListenAndServe(port, handler)
+	if err != nil {
+		log.Fatalf("server failed: %v", err)
 	}
 }
