@@ -33,7 +33,7 @@ service log.
 **Done when:** an empty PostgreSQL database can be created entirely from the
 migration files, with no manual SQL steps.
 
-## 4. Simple User CRUD in Auth
+## 4. Simple User CRUD in Auth (Completed)
 
 - Create a `users` table with migration files.
 - Add model, repository, service, handler, request validation, and routes.
@@ -43,7 +43,7 @@ migration files, with no manual SQL steps.
 **Done when:** the Auth service can manage users through Kong at
 `http://localhost:8000/auth`.
 
-## 5. Redis Connection and First Use Case
+## 5. Redis Connection and First Use Case (Completed)
 
 Use Redis after CRUD works. Redis should have a purpose: cache data, store
 short-lived sessions, or keep rate-limit counters. Do not use it as a second
@@ -68,19 +68,19 @@ Git.
 **Done when:** a second user lookup reads from Redis, and updates correctly
 remove the stale cache value.
 
-## 6. CORS and Rate Limiting
+## 6. CORS and Rate Limiting (Completed)
 
-- Configure CORS centrally in Kong for browser clients.
-- Add Kong rate limiting for public endpoints first.
-- Use a Redis-backed rate-limit policy when multiple Kong instances need shared
-  counters.
+- Configure CORS centrally in Kong for the local browser origin
+  `http://localhost:3000`.
+- Add a Kong local rate limit of 60 requests per minute to each public service.
+- Switch the policy to Redis when multiple Kong instances need shared counters.
 - Keep business authorization inside the Go services; gateway rate limits are
   not authorization.
 
 **Done when:** a browser origin is allowed intentionally and repeated requests
 receive `429 Too Many Requests` at the configured limit.
 
-## 7. MongoDB Practice Module
+## 7. MongoDB Practice Module (Completed)
 
 - Add MongoDB only for a document-oriented use case, such as audit events,
   activity feeds, or flexible user preferences.
@@ -91,12 +91,12 @@ receive `429 Too Many Requests` at the configured limit.
 **Done when:** one clearly defined document use case is stored and queried from
 MongoDB without affecting PostgreSQL ownership.
 
-## 8. External Avatar API
+## 8. External Avatar API (Completed)
 
 - Create an HTTP client with timeouts, context propagation, and typed request
   and response structs.
-- Call an avatar provider from Auth when a user is created, or expose a separate
-  avatar endpoint.
+- Auth exposes `GET /users/{id}/avatar`. It uses the user's username as a seed
+  for the configured provider and remains disabled until `AVATAR_API_URL` is set.
 - Handle provider failures gracefully and return your standard error shape.
 - Add tests using `httptest`; do not call the real provider in tests.
 

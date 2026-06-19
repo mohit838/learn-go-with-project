@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/mohit838/learn-go-with-project/internal/avatar"
 	"github.com/mohit838/learn-go-with-project/internal/constants"
 	"github.com/mohit838/learn-go-with-project/internal/response"
 	"github.com/redis/go-redis/v9"
@@ -184,17 +185,43 @@ func validate(input CreateRequest) error {
 	return nil
 }
 
-type Handler struct{ service *Service }
+type Handler struct {
+	service *Service
+	avatar  *avatar.Client
+}
 
-func NewHandler(db *sql.DB, cache *redis.Client) *Handler {
-	return &Handler{service: NewService(NewRepository(db), cache)}
+func NewHandler(db *sql.DB, cache *redis.Client, avatarClient *avatar.Client) *Handler {
+	return &Handler{service: NewService(NewRepository(db), cache), avatar: avatarClient}
 }
 func (h *Handler) Routes(r chi.Router) {
 	r.Get("/", h.list)
 	r.Post("/", h.create)
 	r.Get("/{id}", h.get)
+	r.Get("/{id}/avatar", h.getAvatar)
 	r.Put("/{id}", h.update)
 	r.Delete("/{id}", h.delete)
+}
+func (h *Handler) getAvatar(w http.ResponseWriter, r *http.Request) {
+	id, ok := idFrom(r)
+	if !ok {
+		response.Error(w, http.StatusBadRequest, constants.ErrorBadRequest, "invalid user id")
+		return
+	}
+	user, err := h.service.Get(r.Context(), id)
+	if err != nil {
+		h.write(w, http.StatusOK, nil, err)
+		return
+	}
+	value, err := h.avatar.Get(r.Context(), user.Username)
+	if errors.Is(err, avatar.ErrDisabled) {
+		response.Error(w, http.StatusServiceUnavailable, constants.ErrorInternalServer, "avatar provider is not configured")
+		return
+	}
+	if err != nil {
+		response.Error(w, http.StatusBadGateway, constants.ErrorInternalServer, "avatar provider unavailable")
+		return
+	}
+	response.JSON(w, http.StatusOK, value)
 }
 func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	var input CreateRequest

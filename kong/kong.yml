@@ -4,6 +4,19 @@ _transform: true
 services:
   - name: auth-service
     url: http://auth:8484
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - http://localhost:3000
+          methods: [GET, HEAD, PUT, PATCH, POST, DELETE, OPTIONS]
+          headers: [Accept, Authorization, Content-Type, X-Request-ID]
+          exposed_headers: [X-Request-ID]
+          max_age: 3600
+      - name: rate-limiting
+        config:
+          minute: 60
+          policy: local
     routes:
       - name: auth-route
         paths:
@@ -12,6 +25,19 @@ services:
 
   - name: task-tracker-service
     url: http://task-tracker:8485
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - http://localhost:3000
+          methods: [GET, HEAD, PUT, PATCH, POST, DELETE, OPTIONS]
+          headers: [Accept, Authorization, Content-Type, X-Request-ID]
+          exposed_headers: [X-Request-ID]
+          max_age: 3600
+      - name: rate-limiting
+        config:
+          minute: 60
+          policy: local
     routes:
       - name: task-tracker-route
         paths:
@@ -20,6 +46,19 @@ services:
 
   - name: expense-tracker-service
     url: http://expense-tracker:8486
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - http://localhost:3000
+          methods: [GET, HEAD, PUT, PATCH, POST, DELETE, OPTIONS]
+          headers: [Accept, Authorization, Content-Type, X-Request-ID]
+          exposed_headers: [X-Request-ID]
+          max_age: 3600
+      - name: rate-limiting
+        config:
+          minute: 60
+          policy: local
     routes:
       - name: expense-tracker-route
         paths:

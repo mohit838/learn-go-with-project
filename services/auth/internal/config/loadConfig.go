@@ -31,6 +31,7 @@ type Cfg struct {
 	RedisURL      string
 	MongoURL      string
 	MongoDB       string
+	AvatarAPIURL  string
 }
 
 func LoadConfig(path string) (Cfg, error) {
@@ -63,6 +64,7 @@ func LoadConfig(path string) (Cfg, error) {
 		RedisURL:      getEnv("REDIS_URL", ""),
 		MongoURL:      getEnv("MONGO_URL", ""),
 		MongoDB:       getEnv("MONGO_DB", "appdb"),
+		AvatarAPIURL:  getEnv("AVATAR_API_URL", ""),
 	}
 
 	return cfg, nil
