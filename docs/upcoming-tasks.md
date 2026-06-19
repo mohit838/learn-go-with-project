@@ -103,21 +103,23 @@ MongoDB without affecting PostgreSQL ownership.
 **Done when:** the Auth service can safely use an avatar provider and still
 respond predictably when the provider is unavailable.
 
-## 9. gRPC Between Services
+## 9. gRPC Between Services (Completed)
 
 - Start only after REST CRUD and service boundaries are clear.
-- Define a small `.proto` contract, generate Go code, and add a gRPC server to
-  one service.
-- Let another service call one read-only method first.
-- Add deadlines, error mapping, and a local integration test.
+- `TaskService.GetTask` is a versioned protobuf contract with generated Go code.
+- Task Tracker hosts it on `GRPC_PORT` (default `8487`); Auth calls it through
+  `GET /tasks/{id}` with a two-second deadline and maps failures to JSON HTTP
+  responses.
+- See [gRPC Between Auth And Task Tracker](grpc.md) for the flow, local setup,
+  and real-world examples.
 
 **Done when:** one service-to-service request works through gRPC with a stable,
 versioned contract.
 
 ## 10. Review and Harden
 
-- Add health and readiness endpoints for PostgreSQL, Redis, and MongoDB where
-  used.
+- `/health` reports liveness and `/ready` verifies PostgreSQL connectivity
+  before reporting readiness.
 - Add integration tests with disposable local dependencies.
 - Document environment variables, migrations, and API examples for every
   completed milestone.

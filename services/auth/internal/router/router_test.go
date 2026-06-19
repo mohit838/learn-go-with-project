@@ -9,7 +9,7 @@ import (
 )
 
 func TestRootAndNotFoundResponses(t *testing.T) {
-	handler := NewRouter(nil, slog.New(slog.NewJSONHandler(&bytes.Buffer{}, nil)), nil, nil, nil)
+	handler := NewRouter(nil, slog.New(slog.NewJSONHandler(&bytes.Buffer{}, nil)), nil, nil, nil, nil)
 
 	rootRequest := httptest.NewRequest(http.MethodGet, "/", nil)
 	rootResponse := httptest.NewRecorder()
@@ -23,5 +23,12 @@ func TestRootAndNotFoundResponses(t *testing.T) {
 	handler.ServeHTTP(notFoundResponse, notFoundRequest)
 	if notFoundResponse.Code != http.StatusNotFound || notFoundResponse.Body.String() != "{\"error\":{\"code\":\"not_found\",\"message\":\"route not found\"}}\n" {
 		t.Fatalf("not-found response = status %d, body %s", notFoundResponse.Code, notFoundResponse.Body.String())
+	}
+
+	readyRequest := httptest.NewRequest(http.MethodGet, "/ready", nil)
+	readyResponse := httptest.NewRecorder()
+	handler.ServeHTTP(readyResponse, readyRequest)
+	if readyResponse.Code != http.StatusServiceUnavailable {
+		t.Fatalf("ready response = status %d", readyResponse.Code)
 	}
 }

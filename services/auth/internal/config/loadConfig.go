@@ -32,6 +32,7 @@ type Cfg struct {
 	MongoURL      string
 	MongoDB       string
 	AvatarAPIURL  string
+	TaskGRPCAddr  string
 }
 
 func LoadConfig(path string) (Cfg, error) {
@@ -65,6 +66,7 @@ func LoadConfig(path string) (Cfg, error) {
 		MongoURL:      getEnv("MONGO_URL", ""),
 		MongoDB:       getEnv("MONGO_DB", "appdb"),
 		AvatarAPIURL:  getEnv("AVATAR_API_URL", ""),
+		TaskGRPCAddr:  getEnv("TASK_GRPC_ADDR", ""),
 	}
 
 	return cfg, nil

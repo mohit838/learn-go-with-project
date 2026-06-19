@@ -19,6 +19,7 @@ services:
       - ./services/task-tracker/.env
     ports:
       - "8485:8485"
+      - "8487:8487"
     networks:
       - app-network
     restart: unless-stopped

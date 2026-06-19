@@ -3,14 +3,18 @@ package main
 import (
 	"context"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 
 	"github.com/mohit838/learn-go-with-project/internal/audit"
 	"github.com/mohit838/learn-go-with-project/internal/config"
 	"github.com/mohit838/learn-go-with-project/internal/database"
+	grpcserver "github.com/mohit838/learn-go-with-project/internal/grpc"
+	"github.com/mohit838/learn-go-with-project/internal/grpc/taskv1"
 	appLogger "github.com/mohit838/learn-go-with-project/internal/logger"
 	"github.com/mohit838/learn-go-with-project/internal/router"
+	"google.golang.org/grpc"
 )
 
 func main() {
@@ -37,6 +41,21 @@ func main() {
 	}
 	defer mongoClient.Disconnect(context.Background())
 	logger.Info("mongodb connected", "database", cfg.MongoDB)
+
+	grpcListener, err := net.Listen("tcp", ":"+cfg.GRPCPort)
+	if err != nil {
+		logger.Error("listen gRPC", "error", err)
+		os.Exit(1)
+	}
+	grpcServer := grpc.NewServer()
+	taskv1.RegisterTaskServiceServer(grpcServer, grpcserver.NewServer(db))
+	defer grpcServer.GracefulStop()
+	go func() {
+		if err := grpcServer.Serve(grpcListener); err != nil {
+			logger.Error("gRPC server stopped", "error", err)
+		}
+	}()
+	logger.Info("gRPC server started", "port", cfg.GRPCPort)
 
 	handler := router.NewRouter(db, logger, auditStore)
 	port := ":" + cfg.AppPort

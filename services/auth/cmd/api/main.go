@@ -12,6 +12,7 @@ import (
 	"github.com/mohit838/learn-go-with-project/internal/database"
 	appLogger "github.com/mohit838/learn-go-with-project/internal/logger"
 	"github.com/mohit838/learn-go-with-project/internal/router"
+	"github.com/mohit838/learn-go-with-project/internal/taskclient"
 )
 
 func main() {
@@ -52,8 +53,14 @@ func main() {
 		logger.Error("configure avatar provider", "error", err)
 		os.Exit(1)
 	}
+	taskClient, err := taskclient.Connect(context.Background(), cfg.TaskGRPCAddr)
+	if err != nil {
+		logger.Error("connect task gRPC", "error", err)
+		os.Exit(1)
+	}
+	defer taskClient.Close()
 
-	handler := router.NewRouter(db, logger, cache, auditStore, avatarClient)
+	handler := router.NewRouter(db, logger, cache, auditStore, avatarClient, taskClient)
 	port := ":" + cfg.AppPort
 	logger.Info("server started", "port", cfg.AppPort, "environment", cfg.AppEnv)
 	err = http.ListenAndServe(port, handler)

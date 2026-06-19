@@ -1,8 +1,10 @@
 package router
 
 import (
+	"context"
 	"database/sql"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/mohit838/learn-go-with-project/internal/constants"
@@ -20,6 +22,15 @@ func registerAppAPI(r chi.Router, serviceName string, db *sql.DB) {
 
 	r.Get(constants.HealthPath, func(w http.ResponseWriter, r *http.Request) {
 		response.JSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	})
+	r.Get(constants.ReadyPath, func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+		defer cancel()
+		if db == nil || db.PingContext(ctx) != nil {
+			response.Error(w, http.StatusServiceUnavailable, constants.ErrorInternalServer, "service dependencies are unavailable")
+			return
+		}
+		response.JSON(w, http.StatusOK, map[string]string{"status": "ready"})
 	})
 	r.Route("/tasks", task.NewHandler(db).Routes)
 }

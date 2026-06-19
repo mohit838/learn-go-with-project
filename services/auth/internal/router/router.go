@@ -13,10 +13,11 @@ import (
 	"github.com/mohit838/learn-go-with-project/internal/constants"
 	appLogger "github.com/mohit838/learn-go-with-project/internal/logger"
 	"github.com/mohit838/learn-go-with-project/internal/response"
+	"github.com/mohit838/learn-go-with-project/internal/taskclient"
 	"github.com/redis/go-redis/v9"
 )
 
-func NewRouter(db *sql.DB, log *slog.Logger, cache *redis.Client, auditStore *audit.Store, avatarClient *avatar.Client) http.Handler {
+func NewRouter(db *sql.DB, log *slog.Logger, cache *redis.Client, auditStore *audit.Store, avatarClient *avatar.Client, taskClient *taskclient.Client) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
@@ -25,7 +26,7 @@ func NewRouter(db *sql.DB, log *slog.Logger, cache *redis.Client, auditStore *au
 	r.Use(appLogger.Recovery(log))
 	r.Use(middleware.Timeout(60 * time.Second))
 
-	registerAppAPI(r, "auth-service", db, cache, avatarClient)
+	registerAppAPI(r, "auth-service", db, cache, avatarClient, taskClient)
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
 		response.Error(w, http.StatusNotFound, constants.ErrorNotFound, "route not found")
 	})
