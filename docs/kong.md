@@ -294,7 +294,23 @@ make logs
 
 ## Common Commands
 
-Start the stack:
+Start only Kong for local service development:
+
+```sh
+make gateway-dev
+```
+
+Run services in local terminals:
+
+```sh
+cd services/auth && go run ./cmd/api
+cd services/task-tracker && go run ./cmd/api
+cd services/expense-tracker && go run ./cmd/api
+```
+
+In this mode, Kong uses [`kong/kong.dev.yml`](../kong/kong.dev.yml) and forwards traffic to `host.docker.internal`.
+
+Start the full container stack:
 
 ```sh
 make up

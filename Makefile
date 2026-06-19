@@ -1,9 +1,13 @@
 COMPOSE ?= docker compose
+DEV_COMPOSE ?= docker compose -f docker-compose.dev.yml
 
-.PHONY: help build up down restart logs ps gateway test fmt tidy clean
+.PHONY: help build up down restart logs ps gateway gateway-dev gateway-dev-down gateway-dev-logs gateway-dev-ps test fmt tidy clean
 
 help:
 	@printf "Available targets:\n"
+	@printf "  make gateway-dev       Start Kong only for local service development\n"
+	@printf "  make gateway-dev-down  Stop Kong dev gateway\n"
+	@printf "  make gateway-dev-logs  Follow Kong dev logs\n"
 	@printf "  make build     Build all service images\n"
 	@printf "  make up        Start services and Kong\n"
 	@printf "  make down      Stop and remove containers\n"
@@ -39,6 +43,19 @@ gateway:
 	@printf "Task tracker:     http://localhost:8000/tasks\n"
 	@printf "Expense tracker:  http://localhost:8000/expenses\n"
 	@printf "Kong admin API:   http://localhost:8001\n"
+
+gateway-dev:
+	$(DEV_COMPOSE) up -d
+	@$(MAKE) gateway
+
+gateway-dev-down:
+	$(DEV_COMPOSE) down
+
+gateway-dev-logs:
+	$(DEV_COMPOSE) logs -f
+
+gateway-dev-ps:
+	$(DEV_COMPOSE) ps
 
 test:
 	@for service in services/*; do \

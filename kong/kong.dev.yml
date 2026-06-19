@@ -1,0 +1,27 @@
+_format_version: "3.0"
+_transform: true
+
+services:
+  - name: auth-service-local
+    url: http://host.docker.internal:8484
+    routes:
+      - name: auth-route-local
+        paths:
+          - /auth
+        strip_path: true
+
+  - name: task-tracker-service-local
+    url: http://host.docker.internal:8485
+    routes:
+      - name: task-tracker-route-local
+        paths:
+          - /tasks
+        strip_path: true
+
+  - name: expense-tracker-service-local
+    url: http://host.docker.internal:8486
+    routes:
+      - name: expense-tracker-route-local
+        paths:
+          - /expenses
+        strip_path: true

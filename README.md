@@ -16,7 +16,23 @@ For this project size, lighter options like Caddy, Traefik, or Nginx would also 
 
 ## Local Setup
 
-Start everything:
+For daily development, run only Kong in Docker and run the Go services locally in terminal tabs:
+
+```sh
+make gateway-dev
+```
+
+Then start the services locally:
+
+```sh
+cd services/auth && go run ./cmd/api
+cd services/task-tracker && go run ./cmd/api
+cd services/expense-tracker && go run ./cmd/api
+```
+
+Kong will route to your locally running services through `host.docker.internal`.
+
+Start everything in Docker when you want a full container check:
 
 ```sh
 make up
