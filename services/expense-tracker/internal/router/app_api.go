@@ -1,14 +1,16 @@
 package router
 
 import (
+	"database/sql"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/mohit838/learn-go-with-project/internal/constants"
+	"github.com/mohit838/learn-go-with-project/internal/expense"
 	"github.com/mohit838/learn-go-with-project/internal/response"
 )
 
-func registerAppAPI(r chi.Router, serviceName string) {
+func registerAppAPI(r chi.Router, serviceName string, db *sql.DB) {
 	r.Get(constants.RootPath, func(w http.ResponseWriter, r *http.Request) {
 		response.JSON(w, http.StatusOK, map[string]string{
 			"service": serviceName,
@@ -19,4 +21,5 @@ func registerAppAPI(r chi.Router, serviceName string) {
 	r.Get(constants.HealthPath, func(w http.ResponseWriter, r *http.Request) {
 		response.JSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
+	r.Route("/expenses", expense.NewHandler(db).Routes)
 }

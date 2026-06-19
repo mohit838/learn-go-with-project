@@ -22,7 +22,7 @@ func NewRouter(db *sql.DB, log *slog.Logger) http.Handler {
 	r.Use(appLogger.Recovery(log))
 	r.Use(middleware.Timeout(60 * time.Second))
 
-	registerAppAPI(r, "auth-service")
+	registerAppAPI(r, "auth-service", db)
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
 		response.Error(w, http.StatusNotFound, constants.ErrorNotFound, "route not found")
 	})
