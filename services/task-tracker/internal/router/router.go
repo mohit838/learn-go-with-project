@@ -8,17 +8,18 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/mohit838/learn-go-with-project/internal/audit"
 	"github.com/mohit838/learn-go-with-project/internal/constants"
 	appLogger "github.com/mohit838/learn-go-with-project/internal/logger"
 	"github.com/mohit838/learn-go-with-project/internal/response"
 )
 
-func NewRouter(db *sql.DB, log *slog.Logger) http.Handler {
+func NewRouter(db *sql.DB, log *slog.Logger, auditStore *audit.Store) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
 	r.Use(middleware.ClientIPFromRemoteAddr)
-	r.Use(appLogger.RequestLogger(log))
+	r.Use(appLogger.RequestLogger(log, "task-tracker-service", auditStore))
 	r.Use(appLogger.Recovery(log))
 	r.Use(middleware.Timeout(60 * time.Second))
 

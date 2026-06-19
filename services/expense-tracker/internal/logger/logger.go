@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/mohit838/learn-go-with-project/internal/audit"
 	"github.com/mohit838/learn-go-with-project/internal/constants"
 	"github.com/mohit838/learn-go-with-project/internal/response"
 )
@@ -18,7 +20,7 @@ func New(level string) *slog.Logger {
 	return slog.New(slog.NewJSONHandler(os.Stdout, options))
 }
 
-func RequestLogger(log *slog.Logger) func(http.Handler) http.Handler {
+func RequestLogger(log *slog.Logger, service string, store *audit.Store) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			started := time.Now()
@@ -33,6 +35,13 @@ func RequestLogger(log *slog.Logger) func(http.Handler) http.Handler {
 				"bytes", wrapped.BytesWritten(),
 				"duration_ms", time.Since(started).Milliseconds(),
 			)
+			if store != nil {
+				go func() {
+					ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+					defer cancel()
+					store.Record(ctx, service, middleware.GetReqID(r.Context()), r.Method, r.URL.Path, wrapped.Status(), time.Since(started))
+				}()
+			}
 		})
 	}
 }

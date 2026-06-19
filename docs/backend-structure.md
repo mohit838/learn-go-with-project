@@ -67,12 +67,22 @@ The request logger writes JSON with the request ID, method, path, status, byte
 count, and duration. JSON logs are machine-readable, so a log collector can
 filter requests such as `status >= 500` without parsing human text.
 
-## Redis And MongoDB Next
+## Redis And MongoDB
 
-Redis should cache read-heavy data, beginning with `GET /users/{id}`. The cache
-must be invalidated after update or delete. MongoDB audit logs should be a
-separate write model: store an `audit_logs` document with `service`, `action`,
-`method`, `path`, `status`, `request_id`, and `created_at`.
+Redis caches Auth's read-heavy `GET /users/{id}` response for five minutes and
+invalidates it after an update or delete. Task and Expense list caching is
+intentionally deferred: without `organization_id`, a shared list cache could
+return one organization's data to another. After organization-scoped queries
+exist, use keys such as `tasks:org:{organizationID}:list` and
+`expenses:org:{organizationID}:list`, invalidating the relevant key after a
+create, update, or delete.
+
+MongoDB audit logs are a separate write model. All three services asynchronously
+write an `audit_logs` document with `service`, `request_id`, `method`, `path`,
+`status`, `duration_ms`, and `created_at`; request bodies, passwords, tokens,
+and credentials are never recorded. For example, a successful
+`POST /tasks/tasks` records `task-tracker-service` and its response status, but
+not the task request body.
 
 Use one Mongo database named `appdb` for this learning project and include the
 service name in every document. Split into three databases only when services
