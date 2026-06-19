@@ -8,9 +8,10 @@ import (
 	"github.com/mohit838/learn-go-with-project/internal/constants"
 	"github.com/mohit838/learn-go-with-project/internal/response"
 	"github.com/mohit838/learn-go-with-project/internal/user"
+	"github.com/redis/go-redis/v9"
 )
 
-func registerAppAPI(r chi.Router, serviceName string, db *sql.DB) {
+func registerAppAPI(r chi.Router, serviceName string, db *sql.DB, cache *redis.Client) {
 	r.Get(constants.RootPath, func(w http.ResponseWriter, r *http.Request) {
 		response.JSON(w, http.StatusOK, map[string]string{
 			"service": serviceName,
@@ -22,5 +23,5 @@ func registerAppAPI(r chi.Router, serviceName string, db *sql.DB) {
 		response.JSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
 
-	r.Route("/users", user.NewHandler(db).Routes)
+	r.Route("/users", user.NewHandler(db, cache).Routes)
 }

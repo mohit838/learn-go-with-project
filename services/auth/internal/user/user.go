@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/mohit838/learn-go-with-project/internal/constants"
 	"github.com/mohit838/learn-go-with-project/internal/response"
+	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -99,9 +100,14 @@ func scan(row scanner) (entity, error) {
 	return user, err
 }
 
-type Service struct{ repo *Repository }
+type Service struct {
+	repo  *Repository
+	cache *redis.Client
+}
 
-func NewService(repo *Repository) *Service { return &Service{repo: repo} }
+func NewService(repo *Repository, cache *redis.Client) *Service {
+	return &Service{repo: repo, cache: cache}
+}
 func (s *Service) Create(ctx context.Context, input CreateRequest) (Response, error) {
 	if err := validate(input); err != nil {
 		return Response{}, err
@@ -129,7 +135,20 @@ func (s *Service) List(ctx context.Context) ([]Response, error) {
 	return out, nil
 }
 func (s *Service) Get(ctx context.Context, id int64) (Response, error) {
+	if s.cache != nil {
+		if value, err := s.cache.Get(ctx, cacheKey(id)).Result(); err == nil {
+			var cached Response
+			if json.Unmarshal([]byte(value), &cached) == nil {
+				return cached, nil
+			}
+		}
+	}
 	user, err := s.repo.Get(ctx, id)
+	if err == nil && s.cache != nil {
+		if value, marshalErr := json.Marshal(user.Response); marshalErr == nil {
+			_ = s.cache.Set(ctx, cacheKey(id), value, 5*time.Minute).Err()
+		}
+	}
 	return user.Response, err
 }
 func (s *Service) Update(ctx context.Context, id int64, input UpdateRequest) (Response, error) {
@@ -145,9 +164,19 @@ func (s *Service) Update(ctx context.Context, id int64, input UpdateRequest) (Re
 		active = *input.IsActive
 	}
 	user, err := s.repo.Update(ctx, id, input.Username, string(hash), active)
+	if err == nil && s.cache != nil {
+		_ = s.cache.Del(ctx, cacheKey(id)).Err()
+	}
 	return user.Response, err
 }
-func (s *Service) Delete(ctx context.Context, id int64) error { return s.repo.Delete(ctx, id) }
+func (s *Service) Delete(ctx context.Context, id int64) error {
+	err := s.repo.Delete(ctx, id)
+	if err == nil && s.cache != nil {
+		_ = s.cache.Del(ctx, cacheKey(id)).Err()
+	}
+	return err
+}
+func cacheKey(id int64) string { return "auth:user:" + strconv.FormatInt(id, 10) }
 func validate(input CreateRequest) error {
 	if strings.TrimSpace(input.Username) == "" || len(input.Password) < 8 {
 		return errors.New("username is required and password must be at least 8 characters")
@@ -157,7 +186,9 @@ func validate(input CreateRequest) error {
 
 type Handler struct{ service *Service }
 
-func NewHandler(db *sql.DB) *Handler { return &Handler{service: NewService(NewRepository(db))} }
+func NewHandler(db *sql.DB, cache *redis.Client) *Handler {
+	return &Handler{service: NewService(NewRepository(db), cache)}
+}
 func (h *Handler) Routes(r chi.Router) {
 	r.Get("/", h.list)
 	r.Post("/", h.create)

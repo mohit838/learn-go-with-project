@@ -11,9 +11,10 @@ import (
 	"github.com/mohit838/learn-go-with-project/internal/constants"
 	appLogger "github.com/mohit838/learn-go-with-project/internal/logger"
 	"github.com/mohit838/learn-go-with-project/internal/response"
+	"github.com/redis/go-redis/v9"
 )
 
-func NewRouter(db *sql.DB, log *slog.Logger) http.Handler {
+func NewRouter(db *sql.DB, log *slog.Logger, cache ...*redis.Client) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
@@ -22,7 +23,11 @@ func NewRouter(db *sql.DB, log *slog.Logger) http.Handler {
 	r.Use(appLogger.Recovery(log))
 	r.Use(middleware.Timeout(60 * time.Second))
 
-	registerAppAPI(r, "auth-service", db)
+	var redisClient *redis.Client
+	if len(cache) > 0 {
+		redisClient = cache[0]
+	}
+	registerAppAPI(r, "auth-service", db, redisClient)
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
 		response.Error(w, http.StatusNotFound, constants.ErrorNotFound, "route not found")
 	})
