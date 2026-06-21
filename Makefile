@@ -1,7 +1,7 @@
 COMPOSE ?= docker compose
 DEV_COMPOSE ?= docker compose -f docker-compose.dev.yml
 
-.PHONY: help build up down restart logs ps gateway gateway-dev gateway-dev-down gateway-dev-logs gateway-dev-ps swagger-auth swagger-task-tracker swagger-expense-tracker test fmt tidy clean
+.PHONY: help build up down restart logs ps gateway gateway-dev gateway-dev-down gateway-dev-logs gateway-dev-ps swagger-auth swagger-task-tracker swagger-expense-tracker swagger-generate swagger-generate-auth swagger-generate-task-tracker swagger-generate-expense-tracker test fmt tidy clean
 
 help:
 	@printf "Available targets:\n"
@@ -11,6 +11,10 @@ help:
 	@printf "  make swagger-auth     Open Auth API documentation at http://localhost:8081\n"
 	@printf "  make swagger-task-tracker Open Task Tracker API documentation at http://localhost:8082\n"
 	@printf "  make swagger-expense-tracker Open Expense Tracker API documentation at http://localhost:8083\n"
+	@printf "  make swagger-generate Generate Swagger files for all services\n"
+	@printf "  make swagger-generate-auth Generate Swagger files for Auth\n"
+	@printf "  make swagger-generate-task-tracker Generate Swagger files for Task Tracker\n"
+	@printf "  make swagger-generate-expense-tracker Generate Swagger files for Expense Tracker\n"
 	@printf "  make build     Build all service images\n"
 	@printf "  make up        Start services and Kong\n"
 	@printf "  make down      Stop and remove containers\n"
@@ -68,6 +72,17 @@ swagger-task-tracker:
 
 swagger-expense-tracker:
 	docker run --rm -p 8083:8080 -e SWAGGER_JSON=/spec/openapi.yaml -v "$(CURDIR)/services/expense-tracker/docs/openapi.yaml:/spec/openapi.yaml:ro" swaggerapi/swagger-ui
+
+swagger-generate: swagger-generate-auth swagger-generate-task-tracker swagger-generate-expense-tracker
+
+swagger-generate-auth:
+	cd services/auth && swag init -g cmd/api/main.go -o docs
+
+swagger-generate-task-tracker:
+	cd services/task-tracker && swag init -g cmd/api/main.go -o docs
+
+swagger-generate-expense-tracker:
+	cd services/expense-tracker && swag init -g cmd/api/main.go -o docs
 
 test:
 	@for service in services/*; do \

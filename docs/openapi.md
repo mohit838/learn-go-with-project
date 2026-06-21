@@ -45,6 +45,32 @@ These commands render the committed OpenAPI YAML; they do not generate it from
 Go code. Update the owning `docs/openapi.yaml` file whenever the service API
 changes.
 
+## Generating Swagger from Go Annotations
+
+If a service uses [swaggo](https://github.com/swaggo/swag) annotations, generate
+its Swagger files with a service-specific command:
+
+```sh
+make swagger-generate-auth
+make swagger-generate-task-tracker
+make swagger-generate-expense-tracker
+
+# Generate files for every service.
+make swagger-generate
+```
+
+These targets run `swag init -g cmd/api/main.go -o docs` from the relevant
+service directory. Install the `swag` command once before using them:
+
+```sh
+go install github.com/swaggo/swag/cmd/swag@latest
+```
+
+`swag` creates Swagger 2.0 output such as `docs/swagger.yaml` and
+`docs/swagger.json`; it does not update this project's OpenAPI 3
+`docs/openapi.yaml` files. Keep the OpenAPI files as the versioned API contract
+unless the project deliberately migrates fully to annotation-generated Swagger.
+
 ## Staging
 
 Deploy the same committed OpenAPI files with the service release. In the
