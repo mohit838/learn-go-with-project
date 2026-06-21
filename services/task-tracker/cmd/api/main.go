@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -34,8 +35,31 @@ func main() {
 	defer db.Close()
 	log.Println("DB is connected")
 
+	// MongoDB connection
+	mongoClient, err := database.NewMongoDB(cfg.MongoURL)
+	if err != nil {
+		log.Fatalf("error connecting to MongoDB: %v", err)
+	}
+	defer func() {
+		if err := mongoClient.Disconnect(context.Background()); err != nil {
+			log.Fatalf("error disconnecting MongoDB: %v", err)
+		}
+	}()
+	log.Println("MongoDB is connected")
+
+	// Get the auth database
+	mongoDB := database.GetAuthDB(mongoClient, cfg.MongoDB)
+
+	// Redis connection
+	redisClient, err := database.NewRedis(cfg.RedisURL)
+	if err != nil {
+		log.Fatalf("error connecting to Redis: %v", err)
+	}
+	defer redisClient.Close()
+	log.Println("Redis is connected")
+
 	// App routers
-	handler := router.NewRouter(db)
+	handler := router.NewRouter(db, mongoDB, redisClient)
 
 	// start the server and check port
 	log.Printf("Server is running on port %s\n", cfg.AppPort)
