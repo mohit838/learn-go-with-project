@@ -29,6 +29,13 @@ type Cfg struct {
 	RedisUser     string
 	RedisPassword string
 	RedisURL      string
+
+	MongoHost     string
+	MongoPort     string
+	MongoUser     string
+	MongoPassword string
+	MongoDB       string
+	MongoURL      string
 }
 
 func LoadConfig(path string) (Cfg, error) {
@@ -59,6 +66,13 @@ func LoadConfig(path string) (Cfg, error) {
 		RedisUser:     getEnv("REDIS_USER", ""),
 		RedisPassword: getEnv("REDIS_PASSWORD", ""),
 		RedisURL:      getEnv("REDIS_URL", ""),
+
+		MongoHost:     getEnv("MONGO_HOST", ""),
+		MongoPort:     getEnv("MONGO_PORT", ""),
+		MongoUser:     getEnv("MONGO_USER", ""),
+		MongoPassword: getEnv("MONGO_PASSWORD", ""),
+		MongoDB:       getEnv("MONGO_DB", ""),
+		MongoURL:      getEnv("MONGO_URL", ""),
 	}
 
 	return cfg, nil
