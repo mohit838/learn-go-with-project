@@ -26,6 +26,9 @@ coverage/
 *.out
 *.test
 *.prof
+# Locally built service binaries (for example: go build -o expense-api ./cmd/api)
+services/*/main
+services/*/*-api
 
 # Go workspace and local tool caches
 go.work
