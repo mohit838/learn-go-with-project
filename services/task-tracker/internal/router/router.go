@@ -25,11 +25,18 @@ func NewRouter(db *sql.DB, mongoDB *mongo.Database, redisClient *redis.Client) h
 	// processing should be stopped.
 	r.Use(middleware.Timeout(60 * time.Second))
 
+	// ========================
+	// Health Check Endpoint
+	// ========================
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Task Tracker Service API is running!"))
 	})
 
-	// MongoDB test endpoint
+	// ========================
+	// MongoDB Endpoints
+	// ========================
+	// POST /tasks-log - Create task event log in MongoDB
+	// Example: curl -X POST http://localhost:8485/tasks-log
 	r.Post("/tasks-log", func(w http.ResponseWriter, r *http.Request) {
 		collection := mongoDB.Collection("task_logs")
 		_, err := collection.InsertOne(r.Context(), map[string]any{
@@ -37,23 +44,28 @@ func NewRouter(db *sql.DB, mongoDB *mongo.Database, redisClient *redis.Client) h
 			"timestamp": time.Now(),
 		})
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, "Failed to create task log: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 		w.Write([]byte("Task log created!"))
 	})
 
-	// Redis test endpoint
+	// ========================
+	// Redis Cache Endpoints
+	// ========================
+	// POST /cache - Set a cache value (1 hour TTL)
+	// Example: curl -X POST http://localhost:8485/cache
 	r.Post("/cache", func(w http.ResponseWriter, r *http.Request) {
 		err := redisClient.Set(r.Context(), "task_key", "task_value", 1*time.Hour).Err()
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, "Failed to set cache: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 		w.Write([]byte("Cache set!"))
 	})
 
-	// Redis get endpoint
+	// GET /cache/:key - Retrieve a cache value
+	// Example: curl http://localhost:8485/cache/task_key
 	r.Get("/cache/:key", func(w http.ResponseWriter, r *http.Request) {
 		key := chi.URLParam(r, "key")
 		val, err := redisClient.Get(r.Context(), key).Result()

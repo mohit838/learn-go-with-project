@@ -8,7 +8,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/redis/go-redis/v9"
-	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 func NewRouter(db *sql.DB, mongoDB *mongo.Database, redisClient *redis.Client) http.Handler {
@@ -25,11 +25,18 @@ func NewRouter(db *sql.DB, mongoDB *mongo.Database, redisClient *redis.Client) h
 	// processing should be stopped.
 	r.Use(middleware.Timeout(60 * time.Second))
 
+	// ========================
+	// Health Check Endpoint
+	// ========================
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Expense Tracker Service API is running!"))
 	})
 
-	// MongoDB test endpoint
+	// ========================
+	// MongoDB Endpoints
+	// ========================
+	// POST /expense-log - Create expense event log in MongoDB
+	// Example: curl -X POST http://localhost:8486/expense-log
 	r.Post("/expense-log", func(w http.ResponseWriter, r *http.Request) {
 		collection := mongoDB.Collection("expense_logs")
 		_, err := collection.InsertOne(r.Context(), map[string]any{
@@ -37,23 +44,28 @@ func NewRouter(db *sql.DB, mongoDB *mongo.Database, redisClient *redis.Client) h
 			"timestamp": time.Now(),
 		})
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, "Failed to create expense log: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 		w.Write([]byte("Expense log created!"))
 	})
 
-	// Redis test endpoint
+	// ========================
+	// Redis Cache Endpoints
+	// ========================
+	// POST /cache - Set a cache value (1 hour TTL)
+	// Example: curl -X POST http://localhost:8486/cache
 	r.Post("/cache", func(w http.ResponseWriter, r *http.Request) {
 		err := redisClient.Set(r.Context(), "expense_key", "expense_value", 1*time.Hour).Err()
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, "Failed to set cache: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 		w.Write([]byte("Cache set!"))
 	})
 
-	// Redis get endpoint
+	// GET /cache/:key - Retrieve a cache value
+	// Example: curl http://localhost:8486/cache/expense_key
 	r.Get("/cache/:key", func(w http.ResponseWriter, r *http.Request) {
 		key := chi.URLParam(r, "key")
 		val, err := redisClient.Get(r.Context(), key).Result()
