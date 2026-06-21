@@ -50,8 +50,16 @@ func main() {
 	// Get the auth database
 	mongoDB := database.GetAuthDB(mongoClient, cfg.MongoDB)
 
+	// Redis connection
+	redisClient, err := database.NewRedis(cfg.RedisURL)
+	if err != nil {
+		log.Fatalf("error connecting to Redis: %v", err)
+	}
+	defer redisClient.Close()
+	log.Println("Redis is connected")
+
 	// App routers
-	handler := router.NewRouter(db, mongoDB)
+	handler := router.NewRouter(db, mongoDB, redisClient)
 
 	// start the server and check port
 	log.Printf("Server is running on port %s\n", cfg.AppPort)

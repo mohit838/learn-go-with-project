@@ -7,10 +7,11 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/redis/go-redis/v9"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func NewRouter(db *sql.DB, mongoDB *mongo.Database) http.Handler {
+func NewRouter(db *sql.DB, mongoDB *mongo.Database, redisClient *redis.Client) http.Handler {
 	r := chi.NewRouter()
 
 	// A good base middleware stack
@@ -36,6 +37,27 @@ func NewRouter(db *sql.DB, mongoDB *mongo.Database) http.Handler {
 			return
 		}
 		w.Write([]byte("Log created!"))
+	})
+
+	// Redis test endpoint
+	r.Post("/cache", func(w http.ResponseWriter, r *http.Request) {
+		err := redisClient.Set(r.Context(), "test_key", "test_value", 1*time.Hour).Err()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Write([]byte("Cache set!"))
+	})
+
+	// Redis get endpoint
+	r.Get("/cache/:key", func(w http.ResponseWriter, r *http.Request) {
+		key := chi.URLParam(r, "key")
+		val, err := redisClient.Get(r.Context(), key).Result()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		w.Write([]byte(val))
 	})
 
 	return r
