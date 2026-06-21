@@ -1,0 +1,86 @@
+openapi: 3.0.3
+info:
+  title: Task Tracker Service API
+  version: 1.0.0
+  description: HTTP API exposed by the task tracker service.
+servers:
+  - url: http://localhost:8485
+    description: Local development
+paths:
+  /:
+    get:
+      summary: Check service health
+      operationId: getHealth
+      responses:
+        '200':
+          description: Service is running.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: Task Tracker Service API is running!
+  /tasks-log:
+    post:
+      summary: Create a task event log
+      operationId: createTaskLog
+      responses:
+        '200':
+          description: Task event log created.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: Task log created!
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /cache:
+    post:
+      summary: Set the default cache value
+      description: Stores `task_value` under `task_key` for one hour.
+      operationId: setCache
+      responses:
+        '200':
+          description: Cache value set.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: Cache set!
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /cache/{key}:
+    get:
+      summary: Get a cached value
+      operationId: getCacheValue
+      parameters:
+        - $ref: '#/components/parameters/CacheKey'
+      responses:
+        '200':
+          description: Cached value.
+          content:
+            text/plain:
+              schema:
+                type: string
+        '404':
+          description: Cache key was not found.
+          content:
+            text/plain:
+              schema:
+                type: string
+components:
+  parameters:
+    CacheKey:
+      name: key
+      in: path
+      required: true
+      description: Cache key to retrieve.
+      schema:
+        type: string
+      example: task_key
+  responses:
+    InternalServerError:
+      description: A backing service failed to complete the request.
+      content:
+        text/plain:
+          schema:
+            type: string
