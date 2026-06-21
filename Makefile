@@ -1,13 +1,16 @@
 COMPOSE ?= docker compose
 DEV_COMPOSE ?= docker compose -f docker-compose.dev.yml
 
-.PHONY: help build up down restart logs ps gateway gateway-dev gateway-dev-down gateway-dev-logs gateway-dev-ps test fmt tidy clean
+.PHONY: help build up down restart logs ps gateway gateway-dev gateway-dev-down gateway-dev-logs gateway-dev-ps swagger-auth swagger-task-tracker swagger-expense-tracker test fmt tidy clean
 
 help:
 	@printf "Available targets:\n"
 	@printf "  make gateway-dev       Start Kong only for local service development\n"
 	@printf "  make gateway-dev-down  Stop Kong dev gateway\n"
 	@printf "  make gateway-dev-logs  Follow Kong dev logs\n"
+	@printf "  make swagger-auth     Open Auth API documentation at http://localhost:8081\n"
+	@printf "  make swagger-task-tracker Open Task Tracker API documentation at http://localhost:8082\n"
+	@printf "  make swagger-expense-tracker Open Expense Tracker API documentation at http://localhost:8083\n"
 	@printf "  make build     Build all service images\n"
 	@printf "  make up        Start services and Kong\n"
 	@printf "  make down      Stop and remove containers\n"
@@ -56,6 +59,15 @@ gateway-dev-logs:
 
 gateway-dev-ps:
 	$(DEV_COMPOSE) ps
+
+swagger-auth:
+	docker run --rm -p 8081:8080 -e SWAGGER_JSON=/spec/openapi.yaml -v "$(CURDIR)/services/auth/docs/openapi.yaml:/spec/openapi.yaml:ro" swaggerapi/swagger-ui
+
+swagger-task-tracker:
+	docker run --rm -p 8082:8080 -e SWAGGER_JSON=/spec/openapi.yaml -v "$(CURDIR)/services/task-tracker/docs/openapi.yaml:/spec/openapi.yaml:ro" swaggerapi/swagger-ui
+
+swagger-expense-tracker:
+	docker run --rm -p 8083:8080 -e SWAGGER_JSON=/spec/openapi.yaml -v "$(CURDIR)/services/expense-tracker/docs/openapi.yaml:/spec/openapi.yaml:ro" swaggerapi/swagger-ui
 
 test:
 	@for service in services/*; do \

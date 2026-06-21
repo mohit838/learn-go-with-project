@@ -5,7 +5,13 @@ info:
   description: HTTP API exposed by the task tracker service.
 servers:
   - url: http://localhost:8485
-    description: Local development
+    description: Direct local service for debugging
+  - url: '{gatewayUrl}/tasks'
+    description: Kong gateway in development or staging
+    variables:
+      gatewayUrl:
+        default: http://localhost:8000
+        description: Public base URL of the Kong gateway. Set this to the staging gateway URL when testing staging.
 paths:
   /:
     get:
