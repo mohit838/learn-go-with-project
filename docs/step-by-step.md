@@ -254,29 +254,34 @@ Response style should become JSON:
 }
 ```
 
-## 10.1 Add CORS And Public Auth Rate Limiting
+## 10.1 Add Gateway CORS And Public Rate Limiting
 
-Use application-level CORS when browser clients call a service directly during
-local development. Keep the allowed origins explicit.
+Use gateway-level CORS when browser clients call APIs through Kong. Keep the
+allowed origins explicit.
 
-Auth public endpoints should also have a small rate limiter:
-
-```text
-POST /register
-POST /login
-```
-
-Useful Auth settings:
+Auth public endpoints should have tighter gateway rate limits:
 
 ```text
-CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
-CORS_ALLOW_CREDENTIALS=true
-AUTH_RATE_LIMIT_REQUESTS=20
-AUTH_RATE_LIMIT_WINDOW_SECONDS=60
+POST /auth/register
+POST /auth/login
 ```
 
-Later, add gateway-level CORS and rate limiting in Kong for public traffic. Keep
-the app-level limiter as a final service-side guard for sensitive endpoints.
+Useful Kong settings live in `kong/kong.yml` and `kong/kong.dev.yml`:
+
+```text
+Allowed origins:
+http://localhost:3000
+http://localhost:5173
+
+Route limits:
+/auth     60 requests per minute per IP
+/tasks    300 requests per minute per IP
+/expenses 300 requests per minute per IP
+```
+
+For now, keep CORS and public rate limiting at the gateway. Add service-level
+guards later only if a sensitive endpoint needs defense even when bypassing the
+gateway.
 
 ## 11. Add Kong
 

@@ -3,7 +3,6 @@ package config
 import (
 	"os"
 	"strconv"
-	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -17,11 +16,6 @@ type Cfg struct {
 	AppDebug bool
 
 	LogLevel string
-
-	CORSAllowedOrigins         []string
-	CORSAllowCredentials       bool
-	AuthRateLimitRequests      int
-	AuthRateLimitWindowSeconds int
 
 	JWTSecret          string
 	JWTIssuer          string
@@ -71,11 +65,6 @@ func LoadConfig(path string) (Cfg, error) {
 		AppDebug: getEnvAsBool("APP_DEBUG", false),
 
 		LogLevel: getEnv("APP_LOG_LEVEL", ""),
-
-		CORSAllowedOrigins:         getEnvAsCSV("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173"),
-		CORSAllowCredentials:       getEnvAsBool("CORS_ALLOW_CREDENTIALS", true),
-		AuthRateLimitRequests:      getEnvAsInt("AUTH_RATE_LIMIT_REQUESTS", 20),
-		AuthRateLimitWindowSeconds: getEnvAsInt("AUTH_RATE_LIMIT_WINDOW_SECONDS", 60),
 
 		JWTSecret:          getEnv("JWT_SECRET", "local-dev-secret-change-me"),
 		JWTIssuer:          getEnv("JWT_ISSUER", "auth-service"),
@@ -151,17 +140,4 @@ func getEnvAsInt(key string, defaultValue int) int {
 	}
 
 	return intValue
-}
-
-func getEnvAsCSV(key string, defaultValue string) []string {
-	value := getEnv(key, defaultValue)
-	items := strings.Split(value, ",")
-	cleaned := make([]string, 0, len(items))
-	for _, item := range items {
-		item = strings.TrimSpace(item)
-		if item != "" {
-			cleaned = append(cleaned, item)
-		}
-	}
-	return cleaned
 }
