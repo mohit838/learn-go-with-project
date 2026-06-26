@@ -34,13 +34,9 @@ func NewAuthService(repo domain.Repository, tokens *TokenService) *AuthService {
 func (s *AuthService) Register(ctx context.Context, req RegisterRequest) (AuthResponse, error) {
 	req.TenantName = strings.TrimSpace(req.TenantName)
 	req.TenantSlug = strings.TrimSpace(req.TenantSlug)
-	req.RoleName = strings.TrimSpace(req.RoleName)
+	roleName := constants.DefaultRoleGuest
 	req.Username = strings.TrimSpace(req.Username)
 	req.Email = strings.TrimSpace(req.Email)
-
-	if req.RoleName == "" {
-		req.RoleName = constants.DefaultRoleGuest
-	}
 	if err := validateRegister(req); err != nil {
 		return AuthResponse{}, err
 	}
@@ -53,7 +49,7 @@ func (s *AuthService) Register(ctx context.Context, req RegisterRequest) (AuthRe
 	user, err := s.repo.CreateTenantUser(ctx, domain.CreateUserInput{
 		TenantName:   req.TenantName,
 		TenantSlug:   req.TenantSlug,
-		RoleName:     strings.ToLower(req.RoleName),
+		RoleName:     roleName,
 		Username:     req.Username,
 		Email:        req.Email,
 		PasswordHash: string(hash),
@@ -89,6 +85,32 @@ func (s *AuthService) Login(ctx context.Context, req LoginRequest) (AuthResponse
 	return s.authResponse(user)
 }
 
+func (s *AuthService) ListUsers(ctx context.Context, query UserListQuery) (utils.PaginatedResponse[UserResponse], error) {
+	users, total, err := s.repo.ListUsers(ctx, domain.UserListFilter{
+		Search:     strings.TrimSpace(query.Search),
+		Role:       strings.TrimSpace(query.Role),
+		TenantID:   strings.TrimSpace(query.TenantID),
+		TenantSlug: strings.TrimSpace(query.TenantSlug),
+		TenantName: strings.TrimSpace(query.TenantName),
+		Limit:      query.PerPage,
+		Offset:     query.Offset,
+	})
+	if err != nil {
+		return utils.PaginatedResponse[UserResponse]{}, err
+	}
+
+	items := make([]UserResponse, 0, len(users))
+	for _, user := range users {
+		items = append(items, userResponse(user))
+	}
+
+	return utils.NewPaginatedResponse(items, utils.Pagination{
+		Page:    query.Page,
+		PerPage: query.PerPage,
+		Offset:  query.Offset,
+	}, total), nil
+}
+
 func (s *AuthService) authResponse(user domain.AuthUser) (AuthResponse, error) {
 	tokens, err := s.tokens.GeneratePair(user)
 	if err != nil {
@@ -96,19 +118,24 @@ func (s *AuthService) authResponse(user domain.AuthUser) (AuthResponse, error) {
 	}
 
 	return AuthResponse{
-		User: UserResponse{
-			ID:         user.PublicID,
-			TenantID:   user.TenantPublicID,
-			TenantSlug: user.TenantSlug,
-			Role:       user.RoleName,
-			Username:   user.Username,
-			Email:      user.Email,
-			IsActive:   user.IsActive,
-			CreatedAt:  utils.NewAPITime(user.CreatedAt),
-			UpdatedAt:  utils.NewAPITime(user.UpdatedAt),
-		},
+		User:   userResponse(user),
 		Tokens: tokens,
 	}, nil
+}
+
+func userResponse(user domain.AuthUser) UserResponse {
+	return UserResponse{
+		ID:         user.PublicID,
+		TenantID:   user.TenantPublicID,
+		TenantName: user.TenantName,
+		TenantSlug: user.TenantSlug,
+		Role:       user.RoleName,
+		Username:   user.Username,
+		Email:      user.Email,
+		IsActive:   user.IsActive,
+		CreatedAt:  utils.NewAPITime(user.CreatedAt),
+		UpdatedAt:  utils.NewAPITime(user.UpdatedAt),
+	}
 }
 
 func validateRegister(req RegisterRequest) error {

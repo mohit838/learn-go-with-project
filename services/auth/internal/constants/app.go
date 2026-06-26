@@ -26,15 +26,17 @@ const (
 	RouteHealthMinIO    = "/health/minio"
 	RouteRegister       = "/register"
 	RouteLogin          = "/login"
+	RouteUsers          = "/users"
 	RouteLogs           = "/logs"
 	RouteCache          = "/cache"
 	RouteCacheKey       = "/cache/{key}"
 )
 
 const (
-	AuditLogCollection = "auth_logs"
-	DefaultLogAction   = "login"
-	DefaultCacheKey    = "test_key"
-	DefaultCacheValue  = "test_value"
-	DefaultRoleGuest   = "guest"
+	AuditLogCollection    = "auth_logs"
+	DefaultLogAction      = "login"
+	DefaultCacheKey       = "test_key"
+	DefaultCacheValue     = "test_value"
+	DefaultRoleSuperadmin = "superadmin"
+	DefaultRoleGuest      = "guest"
 )

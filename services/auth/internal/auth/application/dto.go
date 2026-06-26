@@ -5,7 +5,6 @@ import "github.com/mohit838/learn-go-with-project/internal/utils"
 type RegisterRequest struct {
 	TenantName string `json:"tenant_name"`
 	TenantSlug string `json:"tenant_slug"`
-	RoleName   string `json:"role_name,omitempty"`
 	Username   string `json:"username"`
 	Email      string `json:"email"`
 	Password   string `json:"password"`
@@ -25,6 +24,7 @@ type AuthResponse struct {
 type UserResponse struct {
 	ID         string        `json:"id"`
 	TenantID   string        `json:"tenant_id"`
+	TenantName string        `json:"tenant_name"`
 	TenantSlug string        `json:"tenant_slug"`
 	Role       string        `json:"role"`
 	Username   string        `json:"username"`
@@ -32,6 +32,17 @@ type UserResponse struct {
 	IsActive   bool          `json:"is_active"`
 	CreatedAt  utils.APITime `json:"created_at"`
 	UpdatedAt  utils.APITime `json:"updated_at"`
+}
+
+type UserListQuery struct {
+	Search     string
+	Role       string
+	TenantID   string
+	TenantSlug string
+	TenantName string
+	Page       int
+	PerPage    int
+	Offset     int
 }
 
 type TokenResponse struct {

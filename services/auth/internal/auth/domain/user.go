@@ -10,6 +10,7 @@ type AuthUser struct {
 	PublicID       string
 	TenantID       int64
 	TenantPublicID string
+	TenantName     string
 	TenantSlug     string
 	RoleID         int64
 	RoleName       string
@@ -33,4 +34,15 @@ type CreateUserInput struct {
 type Repository interface {
 	CreateTenantUser(ctx context.Context, input CreateUserInput) (AuthUser, error)
 	FindUserForLogin(ctx context.Context, tenantSlug, email string) (AuthUser, error)
+	ListUsers(ctx context.Context, filter UserListFilter) ([]AuthUser, int64, error)
+}
+
+type UserListFilter struct {
+	Search     string
+	Role       string
+	TenantID   string
+	TenantSlug string
+	TenantName string
+	Limit      int
+	Offset     int
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/mohit838/learn-go-with-project/internal/auth/application"
 	"github.com/mohit838/learn-go-with-project/internal/response"
+	"github.com/mohit838/learn-go-with-project/internal/utils"
 )
 
 type AuthHandler struct {
@@ -47,6 +48,26 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.Success(w, http.StatusOK, "login successful", result)
+}
+
+func (h *AuthHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
+	pagination := utils.ParsePagination(r)
+	result, err := h.auth.ListUsers(r.Context(), application.UserListQuery{
+		Search:     r.URL.Query().Get("search"),
+		Role:       r.URL.Query().Get("role"),
+		TenantID:   r.URL.Query().Get("tenant_id"),
+		TenantSlug: r.URL.Query().Get("tenant_slug"),
+		TenantName: r.URL.Query().Get("tenant_name"),
+		Page:       pagination.Page,
+		PerPage:    pagination.PerPage,
+		Offset:     pagination.Offset,
+	})
+	if err != nil {
+		writeAuthError(w, err)
+		return
+	}
+
+	response.Success(w, http.StatusOK, "users found", result)
 }
 
 func writeAuthError(w http.ResponseWriter, err error) {

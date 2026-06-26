@@ -63,6 +63,10 @@ func NewRouter(db *sql.DB, mongoDB *mongo.Database, redisClient *redis.Client, m
 
 	r.Post(constants.RouteRegister, authHandler.Register)
 	r.Post(constants.RouteLogin, authHandler.Login)
+	r.Group(func(r chi.Router) {
+		r.Use(transport.RequireRole(tokenService, constants.DefaultRoleSuperadmin))
+		r.Get(constants.RouteUsers, authHandler.ListUsers)
+	})
 
 	// ========================
 	// MongoDB Endpoints
