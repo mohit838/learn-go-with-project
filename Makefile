@@ -1,7 +1,7 @@
 COMPOSE ?= docker compose
 DEV_COMPOSE ?= docker compose -f docker-compose.dev.yml
 
-.PHONY: help build up down restart logs ps gateway gateway-dev gateway-dev-down gateway-dev-logs gateway-dev-ps swagger-auth swagger-task-tracker swagger-expense-tracker swagger-generate swagger-generate-auth swagger-generate-task-tracker swagger-generate-expense-tracker test fmt tidy clean
+.PHONY: help build up down restart logs ps gateway gateway-dev gateway-dev-down gateway-dev-logs gateway-dev-ps swagger-auth swagger-task-tracker swagger-expense-tracker swagger-generate swagger-generate-auth swagger-generate-task-tracker swagger-generate-expense-tracker migrate-up migrate-down migrate-rollback migrate-status migrate-make test fmt tidy clean
 
 help:
 	@printf "Available targets:\n"
@@ -15,6 +15,10 @@ help:
 	@printf "  make swagger-generate-auth Generate Swagger files for Auth\n"
 	@printf "  make swagger-generate-task-tracker Generate Swagger files for Task Tracker\n"
 	@printf "  make swagger-generate-expense-tracker Generate Swagger files for Expense Tracker\n"
+	@printf "  make migrate-up service=auth Run pending migrations for one service\n"
+	@printf "  make migrate-rollback service=auth Roll back latest migration batch for one service\n"
+	@printf "  make migrate-status service=auth Show migration status for one service\n"
+	@printf "  make migrate-make service=auth name=create_users_table Create paired migration files\n"
 	@printf "  make build     Build all service images\n"
 	@printf "  make up        Start services and Kong\n"
 	@printf "  make down      Stop and remove containers\n"
@@ -83,6 +87,27 @@ swagger-generate-task-tracker:
 
 swagger-generate-expense-tracker:
 	cd services/expense-tracker && swag init -g cmd/api/main.go -o docs
+
+migrate-up:
+	@test -n "$(service)" || (printf "service is required, example: make migrate-up service=auth\n" && exit 1)
+	cd services/$(service) && go run ./cmd/migrate up
+
+migrate-down:
+	@test -n "$(service)" || (printf "service is required, example: make migrate-down service=auth\n" && exit 1)
+	cd services/$(service) && go run ./cmd/migrate down
+
+migrate-rollback:
+	@test -n "$(service)" || (printf "service is required, example: make migrate-rollback service=auth\n" && exit 1)
+	cd services/$(service) && go run ./cmd/migrate rollback
+
+migrate-status:
+	@test -n "$(service)" || (printf "service is required, example: make migrate-status service=auth\n" && exit 1)
+	cd services/$(service) && go run ./cmd/migrate status
+
+migrate-make:
+	@test -n "$(service)" || (printf "service is required, example: make migrate-make service=auth name=create_users_table\n" && exit 1)
+	@test -n "$(name)" || (printf "name is required, example: make migrate-make service=auth name=create_users_table\n" && exit 1)
+	cd services/$(service) && go run ./cmd/migrate make $(name)
 
 test:
 	@for service in services/*; do \

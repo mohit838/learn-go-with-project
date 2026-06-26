@@ -8,6 +8,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/minio/minio-go/v7"
+	"github.com/mohit838/learn-go-with-project/internal/response"
 	"github.com/redis/go-redis/v9"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -26,24 +27,14 @@ func NewRouter(db *sql.DB, mongoDB *mongo.Database, redisClient *redis.Client, m
 	// processing should be stopped.
 	r.Use(middleware.Timeout(60 * time.Second))
 
-	// ========================
-	// Health Check Endpoint
-	// ========================
-	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Expense Tracker Service API is running!"))
-	})
-
-	r.Get("/health/minio", func(w http.ResponseWriter, r *http.Request) {
-		exists, err := minioClient.BucketExists(r.Context(), minioBucket)
-		if err != nil {
-			http.Error(w, "MinIO health check failed: "+err.Error(), http.StatusServiceUnavailable)
-			return
-		}
-		if !exists {
-			http.Error(w, "MinIO bucket not found: "+minioBucket, http.StatusServiceUnavailable)
-			return
-		}
-		w.Write([]byte("MinIO connected!"))
+	registerHealthRoutes(r, healthDependencies{
+		db:           db,
+		mongoDB:      mongoDB,
+		redisClient:  redisClient,
+		minioClient:  minioClient,
+		minioBucket:  minioBucket,
+		serviceName:  "expense-tracker-service",
+		serviceTitle: "Expense Tracker Service",
 	})
 
 	// ========================
@@ -58,10 +49,12 @@ func NewRouter(db *sql.DB, mongoDB *mongo.Database, redisClient *redis.Client, m
 			"timestamp": time.Now(),
 		})
 		if err != nil {
-			http.Error(w, "Failed to create expense log: "+err.Error(), http.StatusInternalServerError)
+			response.Error(w, http.StatusInternalServerError, "failed to create expense log", err.Error())
 			return
 		}
-		w.Write([]byte("Expense log created!"))
+		response.Success(w, http.StatusCreated, "expense log created", map[string]string{
+			"collection": "expense_logs",
+		})
 	})
 
 	// ========================
@@ -72,10 +65,12 @@ func NewRouter(db *sql.DB, mongoDB *mongo.Database, redisClient *redis.Client, m
 	r.Post("/cache", func(w http.ResponseWriter, r *http.Request) {
 		err := redisClient.Set(r.Context(), "expense_key", "expense_value", 1*time.Hour).Err()
 		if err != nil {
-			http.Error(w, "Failed to set cache: "+err.Error(), http.StatusInternalServerError)
+			response.Error(w, http.StatusInternalServerError, "failed to set cache", err.Error())
 			return
 		}
-		w.Write([]byte("Cache set!"))
+		response.Success(w, http.StatusCreated, "cache set", map[string]string{
+			"key": "expense_key",
+		})
 	})
 
 	// GET /cache/:key - Retrieve a cache value
@@ -84,10 +79,15 @@ func NewRouter(db *sql.DB, mongoDB *mongo.Database, redisClient *redis.Client, m
 		key := chi.URLParam(r, "key")
 		val, err := redisClient.Get(r.Context(), key).Result()
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusNotFound)
+			response.Error(w, http.StatusNotFound, "cache key not found", map[string]string{
+				"key": key,
+			})
 			return
 		}
-		w.Write([]byte(val))
+		response.Success(w, http.StatusOK, "cache value found", map[string]string{
+			"key":   key,
+			"value": val,
+		})
 	})
 
 	return r

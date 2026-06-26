@@ -53,7 +53,7 @@ func LoadConfig(path string) (Cfg, error) {
 
 	cfg := Cfg{
 		AppEnv:     getEnv("APP_ENV", "development"),
-		AppName:    getEnv("APP_NAME", "task-tracker"),
+		AppName:    getEnv("APP_NAME", "expense-tracker"),
 		AppVersion: getEnv("APP_VERSION", ""),
 
 		AppPort:  getEnv("APP_PORT", ""),
