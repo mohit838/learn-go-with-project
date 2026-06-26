@@ -11,6 +11,7 @@ import (
 	"github.com/mohit838/learn-go-with-project/internal/dto"
 	"github.com/mohit838/learn-go-with-project/internal/model"
 	"github.com/mohit838/learn-go-with-project/internal/repository"
+	"github.com/mohit838/learn-go-with-project/internal/utils"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -105,8 +106,8 @@ func (s *AuthService) authResponse(user model.AuthUser) (dto.AuthResponse, error
 			Username:   user.Username,
 			Email:      user.Email,
 			IsActive:   user.IsActive,
-			CreatedAt:  user.CreatedAt,
-			UpdatedAt:  user.UpdatedAt,
+			CreatedAt:  utils.NewAPITime(user.CreatedAt),
+			UpdatedAt:  utils.NewAPITime(user.UpdatedAt),
 		},
 		Tokens: tokens,
 	}, nil
