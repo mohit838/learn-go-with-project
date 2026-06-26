@@ -564,8 +564,8 @@ OpenTelemetry traces or Elastic APM traces
 13. Add local observability Docker stack.
 14. Add Go metrics, structured logs, and traces.
 15. Add production-friendly observability notes and Make targets.
-16. Add gateway-level auth so downstream services can trust gateway identity
-    headers.
+16. Gateway-level auth is now in place for task routes; keep hardening it before
+    exposing services publicly.
 17. Replace the temporary JSON gRPC codec with generated protobuf code.
 
 ## 16. Keep Or Remove Later

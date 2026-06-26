@@ -2,14 +2,14 @@
 
 ## Request Flow
 
-The intended production shape is:
+The service shape is:
 
 ```text
 Client -> Kong -> Auth validates user -> Kong forwards trusted identity -> Service
 ```
 
-For local development, task-tracker still accepts a Bearer access token directly.
-That keeps the service easy to test before Kong gets full JWT or OIDC validation.
+Task-tracker does not validate client Bearer tokens directly. Kong validates the
+JWT and forwards trusted identity headers to task-tracker.
 
 ## Current Behavior
 
@@ -22,15 +22,14 @@ Auth service:
 
 Task-tracker service:
 
-- Prefers trusted gateway identity headers:
+- Requires trusted gateway identity headers:
   - `X-User-ID`
   - `X-Tenant-ID`
   - `X-Tenant-Slug`
   - `X-User-Role`
-- Falls back to Bearer token verification for local development.
-- Calls Auth gRPC after Bearer token verification to confirm the user is still
-  active and still belongs to the tenant.
 - Exposes a superadmin-only `/graphql` dashboard endpoint.
+- Uses Auth gRPC for internal service-to-service calls, such as dashboard user
+  stats.
 
 ## Important Security Rule
 
@@ -38,9 +37,9 @@ Only Kong or another trusted internal gateway should set identity headers.
 Frontend clients must not be allowed to spoof `X-User-ID`, `X-Tenant-ID`, or
 `X-User-Role`.
 
-When Kong auth is added, configure Kong to validate the token and then inject or
-forward trusted identity claims to upstream services. Services should still keep
-business authorization checks, such as `superadmin` access for dashboards.
+Kong validates the token and then forwards trusted identity claims to upstream
+services. Services should still keep business authorization checks, such as
+`superadmin` access for dashboards.
 
 ## gRPC
 
@@ -105,6 +104,15 @@ Task-tracker:
 
 ```env
 AUTH_GRPC_ADDRESS=localhost:8584
-JWT_SECRET=replace_with_the_same_secret_used_by_auth
-JWT_ISSUER=auth-service
+```
+
+Kong dev config must use the same JWT secret as Auth:
+
+```yaml
+consumers:
+  - username: auth-service
+    jwt_secrets:
+      - key: auth-service
+        algorithm: HS256
+        secret: replace_with_a_long_random_secret
 ```

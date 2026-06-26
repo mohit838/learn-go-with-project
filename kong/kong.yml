@@ -25,6 +25,13 @@ plugins:
       max_age: 300
       preflight_continue: false
 
+consumers:
+  - username: auth-service
+    jwt_secrets:
+      - key: auth-service
+        algorithm: HS256
+        secret: replace_with_prod_auth_jwt_secret
+
 services:
   - name: auth-service
     url: http://auth:8484
@@ -49,6 +56,42 @@ services:
           - /tasks
         strip_path: false
         plugins:
+          - name: jwt
+            config:
+              key_claim_name: iss
+              claims_to_verify:
+                - exp
+          - name: pre-function
+            config:
+              access:
+                - |
+                  local token = kong.request.get_header("authorization")
+                  if not token then
+                    return kong.response.exit(401, { message = "missing authorization token" })
+                  end
+                  token = token:gsub("^[Bb]earer%s+", "")
+                  local payload = token:match("^[^.]+%.([^.]+)%.")
+                  if not payload then
+                    return kong.response.exit(401, { message = "invalid authorization token" })
+                  end
+                  payload = payload:gsub("-", "+"):gsub("_", "/")
+                  local padding = #payload % 4
+                  if padding > 0 then
+                    payload = payload .. string.rep("=", 4 - padding)
+                  end
+                  local decoded = ngx.decode_base64(payload)
+                  if not decoded then
+                    return kong.response.exit(401, { message = "invalid authorization token payload" })
+                  end
+                  local cjson = require "cjson.safe"
+                  local claims = cjson.decode(decoded)
+                  if not claims or claims.token_type ~= "access" then
+                    return kong.response.exit(401, { message = "access token required" })
+                  end
+                  kong.service.request.set_header("X-User-ID", claims.sub or "")
+                  kong.service.request.set_header("X-Tenant-ID", claims.tenant_id or "")
+                  kong.service.request.set_header("X-Tenant-Slug", claims.tenant or "")
+                  kong.service.request.set_header("X-User-Role", claims.role or "")
           - name: rate-limiting
             config:
               minute: 300
@@ -61,6 +104,42 @@ services:
           - /graphql
         strip_path: false
         plugins:
+          - name: jwt
+            config:
+              key_claim_name: iss
+              claims_to_verify:
+                - exp
+          - name: pre-function
+            config:
+              access:
+                - |
+                  local token = kong.request.get_header("authorization")
+                  if not token then
+                    return kong.response.exit(401, { message = "missing authorization token" })
+                  end
+                  token = token:gsub("^[Bb]earer%s+", "")
+                  local payload = token:match("^[^.]+%.([^.]+)%.")
+                  if not payload then
+                    return kong.response.exit(401, { message = "invalid authorization token" })
+                  end
+                  payload = payload:gsub("-", "+"):gsub("_", "/")
+                  local padding = #payload % 4
+                  if padding > 0 then
+                    payload = payload .. string.rep("=", 4 - padding)
+                  end
+                  local decoded = ngx.decode_base64(payload)
+                  if not decoded then
+                    return kong.response.exit(401, { message = "invalid authorization token payload" })
+                  end
+                  local cjson = require "cjson.safe"
+                  local claims = cjson.decode(decoded)
+                  if not claims or claims.token_type ~= "access" then
+                    return kong.response.exit(401, { message = "access token required" })
+                  end
+                  kong.service.request.set_header("X-User-ID", claims.sub or "")
+                  kong.service.request.set_header("X-Tenant-ID", claims.tenant_id or "")
+                  kong.service.request.set_header("X-Tenant-Slug", claims.tenant or "")
+                  kong.service.request.set_header("X-User-Role", claims.role or "")
           - name: rate-limiting
             config:
               minute: 300

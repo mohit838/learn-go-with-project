@@ -244,15 +244,18 @@ This keeps repeated security checks out of every service. The service should sti
 Current project shape:
 
 - Auth login/register remains public through `/auth`.
-- Task-tracker accepts gateway identity headers when Kong provides them:
+- Kong validates JWTs for `/tasks` and `/graphql`.
+- Kong forwards trusted identity headers to task-tracker:
   `X-User-ID`, `X-Tenant-ID`, `X-Tenant-Slug`, and `X-User-Role`.
-- Until Kong JWT/OIDC is configured, task-tracker keeps a Bearer-token fallback
-  for local development.
+- Task-tracker trusts the gateway identity headers and does not validate client
+  Bearer tokens directly.
 - The task dashboard is exposed through `/graphql` and still checks the
   `superadmin` business rule inside the service.
+- Auth gRPC remains for internal service-to-service calls.
 
 Important: browser clients should not be allowed to spoof identity headers.
-Only Kong or another trusted internal gateway should set those headers.
+Kong overwrites those headers from verified token claims before forwarding to
+task-tracker.
 
 ## Real Scenario: Rate Limiting
 

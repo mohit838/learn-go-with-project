@@ -48,10 +48,9 @@ func NewRouter(db *sql.DB, mongoDB *mongo.Database, redisClient *redis.Client, m
 	taskHandler := transport.NewTaskHandler(taskService)
 	dashboardService := application.NewDashboardService(taskRepo, authClient)
 	graphQLHandler := transport.NewGraphQLHandler(dashboardService)
-	tokenService := application.NewTokenService(cfg.JWTSecret, cfg.JWTIssuer)
 
 	r.Group(func(r chi.Router) {
-		r.Use(transport.RequireAuth(tokenService, authClient))
+		r.Use(transport.RequireGatewayAuth())
 		r.Post(constants.RouteTasks, taskHandler.Create)
 		r.Get(constants.RouteTasks, taskHandler.List)
 		r.Get(constants.RouteTaskByID, taskHandler.FindByID)

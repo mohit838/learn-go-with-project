@@ -107,7 +107,8 @@ respond predictably when the provider is unavailable.
 
 - Initial learning version is now added:
   - Auth exposes `CheckUser` and `UserStats` over gRPC.
-  - Task-tracker calls Auth gRPC for authoritative Bearer-token user checks.
+  - Kong validates JWTs for task routes and forwards trusted identity headers.
+  - Task-tracker trusts gateway identity for HTTP requests.
   - Task-tracker uses Auth gRPC user stats in the superadmin dashboard.
 - Next hardening step: replace the temporary JSON gRPC codec with generated
   protobuf contracts.
