@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/minio/minio-go/v7"
 	"github.com/redis/go-redis/v9"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -16,7 +17,8 @@ import (
 //   - db: PostgreSQL database connection for primary data
 //   - mongoDB: MongoDB database for audit logging (auth_logs collection)
 //   - redisClient: Redis client for caching (Database 0)
-func NewRouter(db *sql.DB, mongoDB *mongo.Database, redisClient *redis.Client) http.Handler {
+//   - minioClient: MinIO client for object storage
+func NewRouter(db *sql.DB, mongoDB *mongo.Database, redisClient *redis.Client, minioClient *minio.Client, minioBucket string) http.Handler {
 	r := chi.NewRouter()
 
 	// ========================
@@ -38,6 +40,19 @@ func NewRouter(db *sql.DB, mongoDB *mongo.Database, redisClient *redis.Client) h
 	// ========================
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Auth Service API is running!"))
+	})
+
+	r.Get("/health/minio", func(w http.ResponseWriter, r *http.Request) {
+		exists, err := minioClient.BucketExists(r.Context(), minioBucket)
+		if err != nil {
+			http.Error(w, "MinIO health check failed: "+err.Error(), http.StatusServiceUnavailable)
+			return
+		}
+		if !exists {
+			http.Error(w, "MinIO bucket not found: "+minioBucket, http.StatusServiceUnavailable)
+			return
+		}
+		w.Write([]byte("MinIO connected!"))
 	})
 
 	// ========================

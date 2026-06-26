@@ -65,12 +65,24 @@ func main() {
 	defer redisClient.Close()
 	log.Println(">>-->> Redis connected")
 
+	// MinIO connection for object/file storage
+	minioClient, err := database.NewMinIO(
+		cfg.MinIOEndpoint,
+		cfg.MinIOAccessKey,
+		cfg.MinIOSecretKey,
+		cfg.MinIOUseSSL,
+	)
+	if err != nil {
+		log.Fatalf("error connecting to MinIO: %v", err)
+	}
+	log.Printf(">>-->> MinIO connected | Bucket: %s", cfg.MinIOBucket)
+
 	// ========================
 	// Initialize Router & Start Server
 	// ========================
 
 	// Initialize HTTP router with all middleware
-	handler := router.NewRouter(db, mongoDB, redisClient)
+	handler := router.NewRouter(db, mongoDB, redisClient, minioClient, cfg.MinIOBucket)
 
 	// Start HTTP server on configured port
 	log.Printf("Server starting on port %s...\n", cfg.AppPort)

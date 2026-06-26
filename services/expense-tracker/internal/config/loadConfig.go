@@ -36,6 +36,13 @@ type Cfg struct {
 	MongoPassword string
 	MongoDB       string
 	MongoURL      string
+
+	MinIOEndpoint  string
+	MinIOAccessKey string
+	MinIOSecretKey string
+	MinIOBucket    string
+	MinIORegion    string
+	MinIOUseSSL    bool
 }
 
 func LoadConfig(path string) (Cfg, error) {
@@ -67,13 +74,19 @@ func LoadConfig(path string) (Cfg, error) {
 		RedisPassword: getEnv("REDIS_PASSWORD", ""),
 		RedisURL:      getEnv("REDIS_URL", ""),
 
-
 		MongoHost:     getEnv("MONGO_HOST", ""),
 		MongoPort:     getEnv("MONGO_PORT", ""),
 		MongoUser:     getEnv("MONGO_USER", ""),
 		MongoPassword: getEnv("MONGO_PASSWORD", ""),
 		MongoDB:       getEnv("MONGO_DB", ""),
 		MongoURL:      getEnv("MONGO_URL", ""),
+
+		MinIOEndpoint:  getEnv("MINIO_ENDPOINT", getEnv("S3_ENDPOINT", "")),
+		MinIOAccessKey: getEnv("MINIO_ACCESS_KEY", getEnv("S3_ACCESS_KEY", "")),
+		MinIOSecretKey: getEnv("MINIO_SECRET_KEY", getEnv("S3_SECRET_KEY", "")),
+		MinIOBucket:    getEnv("MINIO_BUCKET", getEnv("S3_BUCKET", "")),
+		MinIORegion:    getEnv("MINIO_REGION", getEnv("S3_REGION", "us-east-1")),
+		MinIOUseSSL:    getEnvAsBool("MINIO_USE_SSL", false),
 	}
 
 	return cfg, nil

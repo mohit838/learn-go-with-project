@@ -7,11 +7,12 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/minio/minio-go/v7"
 	"github.com/redis/go-redis/v9"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func NewRouter(db *sql.DB, mongoDB *mongo.Database, redisClient *redis.Client) http.Handler {
+func NewRouter(db *sql.DB, mongoDB *mongo.Database, redisClient *redis.Client, minioClient *minio.Client, minioBucket string) http.Handler {
 	r := chi.NewRouter()
 
 	// A good base middleware stack
@@ -30,6 +31,19 @@ func NewRouter(db *sql.DB, mongoDB *mongo.Database, redisClient *redis.Client) h
 	// ========================
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Task Tracker Service API is running!"))
+	})
+
+	r.Get("/health/minio", func(w http.ResponseWriter, r *http.Request) {
+		exists, err := minioClient.BucketExists(r.Context(), minioBucket)
+		if err != nil {
+			http.Error(w, "MinIO health check failed: "+err.Error(), http.StatusServiceUnavailable)
+			return
+		}
+		if !exists {
+			http.Error(w, "MinIO bucket not found: "+minioBucket, http.StatusServiceUnavailable)
+			return
+		}
+		w.Write([]byte("MinIO connected!"))
 	})
 
 	// ========================
