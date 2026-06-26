@@ -121,3 +121,29 @@ versioned contract.
 - Add integration tests with disposable local dependencies.
 - Document environment variables, migrations, and API examples for every
   completed milestone.
+
+## 11. Observability Stack
+
+Add observability after the services have real routes, database calls, cache
+usage, and gateway traffic. Start small in local Docker, then shape a
+production-friendly version.
+
+- Add Prometheus metrics for HTTP request count, status, duration, and in-flight
+  requests.
+- Add Grafana dashboards for service health, route latency, error rate, and
+  dependency checks.
+- Add Loki for centralized structured logs from Kong and the Go services.
+- Add distributed tracing with OpenTelemetry so one request can be followed
+  through Kong and service code.
+- Evaluate Elastic APM later if you want a richer APM UI, error grouping,
+  traces, service maps, and searchable transaction data.
+- Add Docker Compose services for local observability, such as Prometheus,
+  Grafana, Loki, Promtail or Alloy, and an OpenTelemetry Collector.
+- Add Makefile commands for developer workflows, for example
+  `make observe-dev`, `make observe-dev-down`, `make observe-dev-logs`, and
+  `make observe-dev-ps`.
+- Add production-oriented Compose or deployment notes with persistent volumes,
+  retention settings, authentication, and resource limits.
+
+**Done when:** a request through Kong can be viewed in metrics, logs, and traces,
+and the local observability stack can be started with one Make command.

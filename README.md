@@ -79,6 +79,13 @@ make tidy
 make gateway
 ```
 
+## Learning Docs
+
+- [Step by step learning plan](docs/step-by-step.md)
+- [Upcoming tasks](docs/upcoming-tasks.md)
+- [Kong gateway notes](docs/kong.md)
+- [OpenAPI documentation](docs/openapi.md)
+
 ## Project Layout
 
 ```text
