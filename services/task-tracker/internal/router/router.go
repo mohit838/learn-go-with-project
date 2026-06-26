@@ -8,12 +8,17 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/minio/minio-go/v7"
+	"github.com/mohit838/learn-go-with-project/internal/config"
+	"github.com/mohit838/learn-go-with-project/internal/constants"
 	"github.com/mohit838/learn-go-with-project/internal/response"
+	"github.com/mohit838/learn-go-with-project/internal/task/application"
+	"github.com/mohit838/learn-go-with-project/internal/task/infrastructure"
+	"github.com/mohit838/learn-go-with-project/internal/task/transport"
 	"github.com/redis/go-redis/v9"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func NewRouter(db *sql.DB, mongoDB *mongo.Database, redisClient *redis.Client, minioClient *minio.Client, minioBucket string) http.Handler {
+func NewRouter(db *sql.DB, mongoDB *mongo.Database, redisClient *redis.Client, minioClient *minio.Client, minioBucket string, cfg config.Cfg) http.Handler {
 	r := chi.NewRouter()
 
 	// A good base middleware stack
@@ -33,8 +38,25 @@ func NewRouter(db *sql.DB, mongoDB *mongo.Database, redisClient *redis.Client, m
 		redisClient:  redisClient,
 		minioClient:  minioClient,
 		minioBucket:  minioBucket,
-		serviceName:  "task-tracker-service",
-		serviceTitle: "Task Tracker Service",
+		serviceName:  constants.ServiceName,
+		serviceTitle: constants.ServiceTitle,
+	})
+
+	taskRepo := infrastructure.NewTaskRepository(db)
+	imageStorage := infrastructure.NewMinIOImageStorage(minioClient, minioBucket)
+	taskService := application.NewTaskService(taskRepo, imageStorage)
+	taskHandler := transport.NewTaskHandler(taskService)
+	tokenService := application.NewTokenService(cfg.JWTSecret, cfg.JWTIssuer)
+
+	r.Group(func(r chi.Router) {
+		r.Use(transport.RequireAuth(tokenService))
+		r.Post(constants.RouteTasks, taskHandler.Create)
+		r.Get(constants.RouteTasks, taskHandler.List)
+		r.Get(constants.RouteTaskByID, taskHandler.FindByID)
+		r.Put(constants.RouteTaskByID, taskHandler.Update)
+		r.Patch(constants.RouteTaskByID, taskHandler.Update)
+		r.Patch(constants.RouteTaskInactive, taskHandler.MarkInactive)
+		r.Delete(constants.RouteTaskByID, taskHandler.Delete)
 	})
 
 	// ========================
@@ -42,10 +64,10 @@ func NewRouter(db *sql.DB, mongoDB *mongo.Database, redisClient *redis.Client, m
 	// ========================
 	// POST /tasks-log - Create task event log in MongoDB
 	// Example: curl -X POST http://localhost:8485/tasks-log
-	r.Post("/tasks-log", func(w http.ResponseWriter, r *http.Request) {
-		collection := mongoDB.Collection("task_logs")
+	r.Post(constants.RouteLogs, func(w http.ResponseWriter, r *http.Request) {
+		collection := mongoDB.Collection(constants.AuditLogCollection)
 		_, err := collection.InsertOne(r.Context(), map[string]any{
-			"action":    "task_created",
+			"action":    constants.DefaultLogAction,
 			"timestamp": time.Now(),
 		})
 		if err != nil {
@@ -53,7 +75,7 @@ func NewRouter(db *sql.DB, mongoDB *mongo.Database, redisClient *redis.Client, m
 			return
 		}
 		response.Success(w, http.StatusCreated, "task log created", map[string]string{
-			"collection": "task_logs",
+			"collection": constants.AuditLogCollection,
 		})
 	})
 
@@ -62,20 +84,20 @@ func NewRouter(db *sql.DB, mongoDB *mongo.Database, redisClient *redis.Client, m
 	// ========================
 	// POST /cache - Set a cache value (1 hour TTL)
 	// Example: curl -X POST http://localhost:8485/cache
-	r.Post("/cache", func(w http.ResponseWriter, r *http.Request) {
-		err := redisClient.Set(r.Context(), "task_key", "task_value", 1*time.Hour).Err()
+	r.Post(constants.RouteCache, func(w http.ResponseWriter, r *http.Request) {
+		err := redisClient.Set(r.Context(), constants.DefaultCacheKey, constants.DefaultCacheValue, 1*time.Hour).Err()
 		if err != nil {
 			response.Error(w, http.StatusInternalServerError, "failed to set cache", err.Error())
 			return
 		}
 		response.Success(w, http.StatusCreated, "cache set", map[string]string{
-			"key": "task_key",
+			"key": constants.DefaultCacheKey,
 		})
 	})
 
 	// GET /cache/:key - Retrieve a cache value
 	// Example: curl http://localhost:8485/cache/task_key
-	r.Get("/cache/:key", func(w http.ResponseWriter, r *http.Request) {
+	r.Get(constants.RouteCacheKey, func(w http.ResponseWriter, r *http.Request) {
 		key := chi.URLParam(r, "key")
 		val, err := redisClient.Get(r.Context(), key).Result()
 		if err != nil {

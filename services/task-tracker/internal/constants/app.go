@@ -24,6 +24,9 @@ const (
 	RouteHealthRedis    = "/health/redis"
 	RouteHealthMongo    = "/health/mongo"
 	RouteHealthMinIO    = "/health/minio"
+	RouteTasks          = "/tasks"
+	RouteTaskByID       = "/tasks/{id}"
+	RouteTaskInactive   = "/tasks/{id}/inactive"
 	RouteLogs           = "/tasks-log"
 	RouteCache          = "/cache"
 	RouteCacheKey       = "/cache/{key}"
@@ -34,4 +37,11 @@ const (
 	DefaultLogAction   = "task_created"
 	DefaultCacheKey    = "task_key"
 	DefaultCacheValue  = "task_value"
+)
+
+const (
+	DefaultRoleSuperadmin = "superadmin"
+	DefaultRoleAdmin      = "admin"
+	DefaultRoleEmployee   = "employee"
+	DefaultRoleGuest      = "guest"
 )

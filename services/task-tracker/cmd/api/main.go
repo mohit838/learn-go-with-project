@@ -75,6 +75,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("error connecting to MinIO: %v", err)
 	}
+	if err := database.EnsureMinIOBucket(context.Background(), minioClient, cfg.MinIOBucket, cfg.MinIORegion); err != nil {
+		log.Fatalf("error ensuring MinIO bucket: %v", err)
+	}
 	log.Printf(">>-->> MinIO connected | Bucket: %s", cfg.MinIOBucket)
 
 	// ========================
@@ -82,7 +85,7 @@ func main() {
 	// ========================
 
 	// Initialize HTTP router with all middleware
-	handler := router.NewRouter(db, mongoDB, redisClient, minioClient, cfg.MinIOBucket)
+	handler := router.NewRouter(db, mongoDB, redisClient, minioClient, cfg.MinIOBucket, cfg)
 
 	// Start HTTP server on configured port
 	log.Printf("Server starting on port %s...\n", cfg.AppPort)

@@ -17,6 +17,9 @@ type Cfg struct {
 
 	LogLevel string
 
+	JWTSecret string
+	JWTIssuer string
+
 	DBHost     string
 	DBPort     string
 	DBUser     string
@@ -60,6 +63,9 @@ func LoadConfig(path string) (Cfg, error) {
 		AppDebug: getEnvAsBool("APP_DEBUG", false),
 
 		LogLevel: getEnv("APP_LOG_LEVEL", ""),
+
+		JWTSecret: getEnv("JWT_SECRET", "local-dev-secret-change-me"),
+		JWTIssuer: getEnv("JWT_ISSUER", "auth-service"),
 
 		DBHost:     getEnv("DB_HOST", ""),
 		DBPort:     getEnv("DB_PORT", ""),
