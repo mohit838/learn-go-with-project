@@ -268,6 +268,37 @@ This is useful for:
 - Preventing accidental frontend loops from overwhelming APIs.
 - Giving different limits to different clients later.
 
+This project uses Kong route-level rate limits:
+
+| Route | Limit | Why |
+| --- | --- | --- |
+| `/auth` | 60 requests per minute per IP | Public login/register routes need tighter protection. |
+| `/tasks` | 300 requests per minute per IP | Normal API traffic during local development. |
+| `/expenses` | 300 requests per minute per IP | Normal API traffic during local development. |
+
+Auth also keeps a service-level limiter on `POST /register` and `POST /login`.
+That gives sensitive endpoints a final guard even if gateway config changes.
+
+## Real Scenario: Browser CORS
+
+Kong handles browser CORS at the gateway so frontend apps can use one public API
+base URL:
+
+```text
+http://localhost:8000
+```
+
+Allowed local origins:
+
+```text
+http://localhost:3000
+http://localhost:5173
+```
+
+The current CORS plugin allows common API methods, `Authorization`,
+`Content-Type`, and `X-Request-ID`. Add staging or production frontend origins
+to `kong/kong.yml` before exposing those environments.
+
 ## Real Scenario: Logging And Observability
 
 Kong can log every request before it reaches a service.
@@ -354,11 +385,13 @@ curl http://localhost:8001/routes
 
 ## Current Project Recommendation
 
-For this project, keep Kong simple for now:
+For this project, keep Kong responsible for edge concerns:
 
 - Use path routing only.
+- Use gateway-level CORS for browser clients.
+- Use gateway-level rate limits for public traffic.
 - Keep each service responsible for its own business logic.
-- Add auth or rate limiting plugins only when the service routes become real.
+- Keep app-level guards on sensitive routes such as login/register.
 - Add more routes as new services are created.
 
 This keeps the project easy to understand while still using a gateway structure that can grow.
