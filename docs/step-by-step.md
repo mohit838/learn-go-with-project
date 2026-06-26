@@ -254,6 +254,30 @@ Response style should become JSON:
 }
 ```
 
+## 10.1 Add CORS And Public Auth Rate Limiting
+
+Use application-level CORS when browser clients call a service directly during
+local development. Keep the allowed origins explicit.
+
+Auth public endpoints should also have a small rate limiter:
+
+```text
+POST /register
+POST /login
+```
+
+Useful Auth settings:
+
+```text
+CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
+CORS_ALLOW_CREDENTIALS=true
+AUTH_RATE_LIMIT_REQUESTS=20
+AUTH_RATE_LIMIT_WINDOW_SECONDS=60
+```
+
+Later, add gateway-level CORS and rate limiting in Kong for public traffic. Keep
+the app-level limiter as a final service-side guard for sensitive endpoints.
+
 ## 11. Add Kong
 
 Kong is the public gateway in front of the services.

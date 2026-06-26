@@ -13,6 +13,7 @@ import (
 	"github.com/mohit838/learn-go-with-project/internal/auth/transport"
 	"github.com/mohit838/learn-go-with-project/internal/config"
 	"github.com/mohit838/learn-go-with-project/internal/constants"
+	"github.com/mohit838/learn-go-with-project/internal/httpx"
 	"github.com/mohit838/learn-go-with-project/internal/response"
 	"github.com/redis/go-redis/v9"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -38,6 +39,11 @@ func NewRouter(db *sql.DB, mongoDB *mongo.Database, redisClient *redis.Client, m
 	r.Use(middleware.Logger)
 	// Recoverer: Recover from panics and log them
 	r.Use(middleware.Recoverer)
+	r.Use(httpx.CORS(httpx.CORSConfig{
+		AllowedOrigins:   cfg.CORSAllowedOrigins,
+		AllowCredentials: cfg.CORSAllowCredentials,
+		MaxAgeSeconds:    300,
+	}))
 	// Timeout: Set 60 second timeout for all requests
 	r.Use(middleware.Timeout(60 * time.Second))
 
@@ -60,9 +66,16 @@ func NewRouter(db *sql.DB, mongoDB *mongo.Database, redisClient *redis.Client, m
 	)
 	authService := application.NewAuthService(authRepo, tokenService)
 	authHandler := transport.NewAuthHandler(authService)
+	authRateLimiter := httpx.NewRateLimiter(httpx.RateLimiterConfig{
+		Limit:  cfg.AuthRateLimitRequests,
+		Window: time.Duration(cfg.AuthRateLimitWindowSeconds) * time.Second,
+	})
 
-	r.Post(constants.RouteRegister, authHandler.Register)
-	r.Post(constants.RouteLogin, authHandler.Login)
+	r.Group(func(r chi.Router) {
+		r.Use(authRateLimiter.Middleware)
+		r.Post(constants.RouteRegister, authHandler.Register)
+		r.Post(constants.RouteLogin, authHandler.Login)
+	})
 
 	// ========================
 	// MongoDB Endpoints
