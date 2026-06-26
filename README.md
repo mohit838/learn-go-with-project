@@ -79,6 +79,15 @@ make tidy
 make gateway
 ```
 
+Migration helpers use the `service` name from the `services/` folder:
+
+```sh
+make migrate-make service=auth name=create_users_table
+make migrate-status service=auth
+make migrate-up service=auth
+make migrate-rollback service=auth
+```
+
 ## Learning Docs
 
 - [Step by step learning plan](docs/step-by-step.md)
