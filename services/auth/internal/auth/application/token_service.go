@@ -1,4 +1,4 @@
-package service
+package application
 
 import (
 	"crypto/hmac"
@@ -9,8 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mohit838/learn-go-with-project/internal/dto"
-	"github.com/mohit838/learn-go-with-project/internal/model"
+	"github.com/mohit838/learn-go-with-project/internal/auth/domain"
 )
 
 type TokenService struct {
@@ -29,17 +28,17 @@ func NewTokenService(secret, issuer string, accessTTL, refreshTTL time.Duration)
 	}
 }
 
-func (s *TokenService) GeneratePair(user model.AuthUser) (dto.TokenResponse, error) {
+func (s *TokenService) GeneratePair(user domain.AuthUser) (TokenResponse, error) {
 	accessToken, err := s.generate(user, "access", s.accessTTL)
 	if err != nil {
-		return dto.TokenResponse{}, err
+		return TokenResponse{}, err
 	}
 	refreshToken, err := s.generate(user, "refresh", s.refreshTTL)
 	if err != nil {
-		return dto.TokenResponse{}, err
+		return TokenResponse{}, err
 	}
 
-	return dto.TokenResponse{
+	return TokenResponse{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		TokenType:    "Bearer",
@@ -47,7 +46,7 @@ func (s *TokenService) GeneratePair(user model.AuthUser) (dto.TokenResponse, err
 	}, nil
 }
 
-func (s *TokenService) generate(user model.AuthUser, tokenType string, ttl time.Duration) (string, error) {
+func (s *TokenService) generate(user domain.AuthUser, tokenType string, ttl time.Duration) (string, error) {
 	now := time.Now().UTC()
 	header := map[string]string{
 		"alg": "HS256",

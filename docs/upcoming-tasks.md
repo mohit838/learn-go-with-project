@@ -36,9 +36,9 @@ migration files, with no manual SQL steps.
 ## 4. Simple User CRUD in Auth
 
 - Create a `users` table with migration files.
-- Add model, repository, service, handler, request validation, and routes.
+- Add domain, application, infrastructure, transport, request validation, and routes.
 - Implement create, list, get by ID, update, and delete endpoints.
-- Add handler and repository tests.
+- Add application, transport, and repository tests.
 
 **Done when:** the Auth service can manage users through Kong at
 `http://localhost:8000/auth`.

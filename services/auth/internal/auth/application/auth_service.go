@@ -1,4 +1,4 @@
-package service
+package application
 
 import (
 	"context"
@@ -7,10 +7,8 @@ import (
 	"net/mail"
 	"strings"
 
+	"github.com/mohit838/learn-go-with-project/internal/auth/domain"
 	"github.com/mohit838/learn-go-with-project/internal/constants"
-	"github.com/mohit838/learn-go-with-project/internal/dto"
-	"github.com/mohit838/learn-go-with-project/internal/model"
-	"github.com/mohit838/learn-go-with-project/internal/repository"
 	"github.com/mohit838/learn-go-with-project/internal/utils"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -22,18 +20,18 @@ var (
 )
 
 type AuthService struct {
-	repo   *repository.AuthRepository
+	repo   domain.Repository
 	tokens *TokenService
 }
 
-func NewAuthService(repo *repository.AuthRepository, tokens *TokenService) *AuthService {
+func NewAuthService(repo domain.Repository, tokens *TokenService) *AuthService {
 	return &AuthService{
 		repo:   repo,
 		tokens: tokens,
 	}
 }
 
-func (s *AuthService) Register(ctx context.Context, req dto.RegisterRequest) (dto.AuthResponse, error) {
+func (s *AuthService) Register(ctx context.Context, req RegisterRequest) (AuthResponse, error) {
 	req.TenantName = strings.TrimSpace(req.TenantName)
 	req.TenantSlug = strings.TrimSpace(req.TenantSlug)
 	req.RoleName = strings.TrimSpace(req.RoleName)
@@ -44,15 +42,15 @@ func (s *AuthService) Register(ctx context.Context, req dto.RegisterRequest) (dt
 		req.RoleName = constants.DefaultRoleGuest
 	}
 	if err := validateRegister(req); err != nil {
-		return dto.AuthResponse{}, err
+		return AuthResponse{}, err
 	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
-		return dto.AuthResponse{}, err
+		return AuthResponse{}, err
 	}
 
-	user, err := s.repo.CreateTenantUser(ctx, repository.CreateUserInput{
+	user, err := s.repo.CreateTenantUser(ctx, domain.CreateUserInput{
 		TenantName:   req.TenantName,
 		TenantSlug:   req.TenantSlug,
 		RoleName:     strings.ToLower(req.RoleName),
@@ -61,44 +59,44 @@ func (s *AuthService) Register(ctx context.Context, req dto.RegisterRequest) (dt
 		PasswordHash: string(hash),
 	})
 	if err != nil {
-		return dto.AuthResponse{}, err
+		return AuthResponse{}, err
 	}
 
 	return s.authResponse(user)
 }
 
-func (s *AuthService) Login(ctx context.Context, req dto.LoginRequest) (dto.AuthResponse, error) {
+func (s *AuthService) Login(ctx context.Context, req LoginRequest) (AuthResponse, error) {
 	req.TenantSlug = strings.TrimSpace(req.TenantSlug)
 	req.Email = strings.TrimSpace(req.Email)
 	if req.TenantSlug == "" || req.Email == "" || req.Password == "" {
-		return dto.AuthResponse{}, ErrInvalidInput
+		return AuthResponse{}, ErrInvalidInput
 	}
 
 	user, err := s.repo.FindUserForLogin(ctx, req.TenantSlug, req.Email)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return dto.AuthResponse{}, ErrInvalidCredentials
+			return AuthResponse{}, ErrInvalidCredentials
 		}
-		return dto.AuthResponse{}, err
+		return AuthResponse{}, err
 	}
 	if !user.IsActive {
-		return dto.AuthResponse{}, ErrInactiveUser
+		return AuthResponse{}, ErrInactiveUser
 	}
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
-		return dto.AuthResponse{}, ErrInvalidCredentials
+		return AuthResponse{}, ErrInvalidCredentials
 	}
 
 	return s.authResponse(user)
 }
 
-func (s *AuthService) authResponse(user model.AuthUser) (dto.AuthResponse, error) {
+func (s *AuthService) authResponse(user domain.AuthUser) (AuthResponse, error) {
 	tokens, err := s.tokens.GeneratePair(user)
 	if err != nil {
-		return dto.AuthResponse{}, err
+		return AuthResponse{}, err
 	}
 
-	return dto.AuthResponse{
-		User: dto.UserResponse{
+	return AuthResponse{
+		User: UserResponse{
 			ID:         user.PublicID,
 			TenantID:   user.TenantPublicID,
 			TenantSlug: user.TenantSlug,
@@ -113,7 +111,7 @@ func (s *AuthService) authResponse(user model.AuthUser) (dto.AuthResponse, error
 	}, nil
 }
 
-func validateRegister(req dto.RegisterRequest) error {
+func validateRegister(req RegisterRequest) error {
 	if req.TenantName == "" || req.TenantSlug == "" || req.Username == "" || req.Email == "" || req.Password == "" {
 		return ErrInvalidInput
 	}

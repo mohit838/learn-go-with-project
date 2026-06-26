@@ -8,12 +8,12 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/minio/minio-go/v7"
+	"github.com/mohit838/learn-go-with-project/internal/auth/application"
+	"github.com/mohit838/learn-go-with-project/internal/auth/infrastructure"
+	"github.com/mohit838/learn-go-with-project/internal/auth/transport"
 	"github.com/mohit838/learn-go-with-project/internal/config"
 	"github.com/mohit838/learn-go-with-project/internal/constants"
-	"github.com/mohit838/learn-go-with-project/internal/handler"
-	"github.com/mohit838/learn-go-with-project/internal/repository"
 	"github.com/mohit838/learn-go-with-project/internal/response"
-	authservice "github.com/mohit838/learn-go-with-project/internal/service"
 	"github.com/redis/go-redis/v9"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -51,15 +51,15 @@ func NewRouter(db *sql.DB, mongoDB *mongo.Database, redisClient *redis.Client, m
 		serviceTitle: constants.ServiceTitle,
 	})
 
-	authRepo := repository.NewAuthRepository(db)
-	tokenService := authservice.NewTokenService(
+	authRepo := infrastructure.NewAuthRepository(db)
+	tokenService := application.NewTokenService(
 		cfg.JWTSecret,
 		cfg.JWTIssuer,
 		time.Duration(cfg.AccessTokenMinutes)*time.Minute,
 		time.Duration(cfg.RefreshTokenHours)*time.Hour,
 	)
-	authService := authservice.NewAuthService(authRepo, tokenService)
-	authHandler := handler.NewAuthHandler(authService)
+	authService := application.NewAuthService(authRepo, tokenService)
+	authHandler := transport.NewAuthHandler(authService)
 
 	r.Post(constants.RouteRegister, authHandler.Register)
 	r.Post(constants.RouteLogin, authHandler.Login)

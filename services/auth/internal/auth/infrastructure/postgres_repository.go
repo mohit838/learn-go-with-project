@@ -1,21 +1,12 @@
-package repository
+package infrastructure
 
 import (
 	"context"
 	"database/sql"
 	"strings"
 
-	"github.com/mohit838/learn-go-with-project/internal/model"
+	"github.com/mohit838/learn-go-with-project/internal/auth/domain"
 )
-
-type CreateUserInput struct {
-	TenantName   string
-	TenantSlug   string
-	RoleName     string
-	Username     string
-	Email        string
-	PasswordHash string
-}
 
 type AuthRepository struct {
 	db *sql.DB
@@ -25,19 +16,19 @@ func NewAuthRepository(db *sql.DB) *AuthRepository {
 	return &AuthRepository{db: db}
 }
 
-func (r *AuthRepository) CreateTenantUser(ctx context.Context, input CreateUserInput) (model.AuthUser, error) {
+func (r *AuthRepository) CreateTenantUser(ctx context.Context, input domain.CreateUserInput) (domain.AuthUser, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return model.AuthUser{}, err
+		return domain.AuthUser{}, err
 	}
 	defer tx.Rollback()
 
-	var user model.AuthUser
+	var user domain.AuthUser
 	if err := tx.QueryRowContext(ctx, `
 SELECT id, name
 FROM roles
 WHERE name = $1 AND is_active = TRUE`, input.RoleName).Scan(&user.RoleID, &user.RoleName); err != nil {
-		return model.AuthUser{}, err
+		return domain.AuthUser{}, err
 	}
 
 	if err := tx.QueryRowContext(ctx, `
@@ -48,7 +39,7 @@ RETURNING id, public_id::text, slug`, input.TenantName, input.TenantSlug).Scan(
 		&user.TenantPublicID,
 		&user.TenantSlug,
 	); err != nil {
-		return model.AuthUser{}, err
+		return domain.AuthUser{}, err
 	}
 
 	if err := tx.QueryRowContext(ctx, `
@@ -70,18 +61,18 @@ RETURNING id, public_id::text, username, email, password_hash, is_active, create
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	); err != nil {
-		return model.AuthUser{}, err
+		return domain.AuthUser{}, err
 	}
 
 	if err := tx.Commit(); err != nil {
-		return model.AuthUser{}, err
+		return domain.AuthUser{}, err
 	}
 
 	return user, nil
 }
 
-func (r *AuthRepository) FindUserForLogin(ctx context.Context, tenantSlug, email string) (model.AuthUser, error) {
-	var user model.AuthUser
+func (r *AuthRepository) FindUserForLogin(ctx context.Context, tenantSlug, email string) (domain.AuthUser, error) {
+	var user domain.AuthUser
 	err := r.db.QueryRowContext(ctx, `
 SELECT
 	u.id,

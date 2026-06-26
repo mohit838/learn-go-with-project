@@ -367,68 +367,77 @@ internal/migration/file.go
 Keep this symmetric across the three services first. Later, if duplication feels
 annoying, extract it into a shared package or a small internal CLI.
 
-## 13. Next: Standard Project Layers
+## 13. Next: DDD-Friendly Project Layers
 
-After migrations, build the application layers in the same shape across all
-three services.
+After migrations, build each service around feature modules. Keep shared
+infrastructure helpers at `internal/`, but put business features in their own
+bounded-context folder.
 
-Recommended folders:
+Recommended Auth shape:
 
 ```text
+internal/auth/
+  domain/
+  application/
+  infrastructure/
+  transport/
+internal/config/
 internal/constants/
-internal/errors/
-internal/utils/
+internal/database/
+internal/migration/
 internal/response/
-internal/dto/
-internal/model/
-internal/repository/
-internal/service/
-internal/handler/
 internal/router/
+internal/utils/
 ```
 
 Suggested purpose:
 
 | Folder | Purpose |
 | --- | --- |
+| `auth/domain` | Entities, domain types, repository interfaces, domain errors |
+| `auth/application` | Use cases, request/response DTOs, token/password workflow |
+| `auth/infrastructure` | Postgres, Redis, MongoDB, external provider implementations |
+| `auth/transport` | HTTP handlers and request/response mapping |
+| `config` | Environment loading |
 | `constants` | App constants, route names, cache prefixes, default values |
-| `errors` | Common domain and HTTP errors |
-| `utils` | Small reusable helpers only |
+| `database` | Database/client connection helpers |
+| `migration` | Migration runner |
 | `response` | Standard success and error JSON response helpers |
-| `dto` | Request and response structs |
-| `model` | Database/domain structs |
-| `repository` | Database access |
-| `service` | Business logic |
-| `handler` | HTTP request parsing and response writing |
-| `router` | Route registration and middleware |
+| `router` | Route registration, middleware, dependency wiring |
+| `utils` | Small reusable helpers only |
 
 Request/response style:
 
 ```text
-dto.CreateUserRequest
-dto.UserResponse
-dto.ErrorResponse
-dto.PaginatedResponse
+application.RegisterRequest
+application.UserResponse
+response.Body
+utils.APITime
 ```
 
-Handler rule:
+Transport rule:
 
 - Decode request.
-- Validate request.
-- Call service.
+- Call application use case.
 - Map result to JSON response.
 
-Service rule:
+Application rule:
 
-- Own business logic.
-- Coordinate repositories, cache, object storage, and events.
+- Own use-case flow.
+- Validate request data.
+- Coordinate domain ports, cache, object storage, and events.
 - Return domain errors.
 
-Repository rule:
+Domain rule:
 
-- Own SQL or storage calls.
-- Accept context.
-- Return models or storage-specific errors.
+- Define business data and interfaces.
+- Do not import SQL, HTTP, Redis, MongoDB, or framework packages.
+
+Infrastructure rule:
+
+- Implement domain interfaces.
+- Own SQL or external storage calls.
+- Accept context and return domain types.
 
 ## 14. Later: Add Observability
 
@@ -516,8 +525,8 @@ OpenTelemetry traces or Elastic APM traces
 3. Add health/readiness JSON routes.
 4. Add migration runner for Auth.
 5. Add Auth `users` migration.
-6. Add Auth DTO, model, repository, service, handler, and routes.
-7. Add tests for Auth handlers and repositories.
+6. Add Auth domain, application, infrastructure, transport, and routes.
+7. Add tests for Auth application use cases, transport handlers, and repositories.
 8. Copy the same structure to Task and Expense for learning symmetry.
 9. Add Redis cache to one read endpoint.
 10. Add MongoDB audit events.

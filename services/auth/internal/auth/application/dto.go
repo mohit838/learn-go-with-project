@@ -1,4 +1,4 @@
-package dto
+package application
 
 import "github.com/mohit838/learn-go-with-project/internal/utils"
 
