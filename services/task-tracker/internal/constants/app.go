@@ -27,7 +27,7 @@ const (
 	RouteTasks          = "/tasks"
 	RouteTaskByID       = "/tasks/{id}"
 	RouteTaskInactive   = "/tasks/{id}/inactive"
-	RouteGraphQL        = "/graphql"
+	RouteGraphQL        = "/tasks/graphql"
 	RouteLogs           = "/tasks-log"
 	RouteCache          = "/cache"
 	RouteCacheKey       = "/cache/{key}"

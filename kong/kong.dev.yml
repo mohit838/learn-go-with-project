@@ -101,7 +101,7 @@ services:
 
       - name: task-tracker-graphql-route-local
         paths:
-          - /graphql
+          - /tasks/graphql
         strip_path: false
         plugins:
           - name: jwt

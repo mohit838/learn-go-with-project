@@ -14,7 +14,7 @@ Current routes:
 | --- | --- | --- |
 | `http://localhost:8000/auth` | `/auth` | `http://auth:8484` |
 | `http://localhost:8000/tasks` | `/tasks` | `http://task-tracker:8485` |
-| `http://localhost:8000/graphql` | `/graphql` | `http://task-tracker:8485` |
+| `http://localhost:8000/tasks/graphql` | `/tasks/graphql` | `http://task-tracker:8485` |
 | `http://localhost:8000/expenses` | `/expenses` | `http://expense-tracker:8486` |
 
 The config lives in [`kong/kong.yml`](../kong/kong.yml).
@@ -244,14 +244,21 @@ This keeps repeated security checks out of every service. The service should sti
 Current project shape:
 
 - Auth login/register remains public through `/auth`.
-- Kong validates JWTs for `/tasks` and `/graphql`.
+- Kong validates JWTs for `/tasks` and `/tasks/graphql`.
 - Kong forwards trusted identity headers to task-tracker:
   `X-User-ID`, `X-Tenant-ID`, `X-Tenant-Slug`, and `X-User-Role`.
 - Task-tracker trusts the gateway identity headers and does not validate client
   Bearer tokens directly.
-- The task dashboard is exposed through `/graphql` and still checks the
+- The task dashboard is exposed through `/tasks/graphql` and still checks the
   `superadmin` business rule inside the service.
 - Auth gRPC remains for internal service-to-service calls.
+
+GraphQL routing rule:
+
+- Use per-service paths while Kong is a simple API gateway:
+  `/tasks/graphql`, `/expenses/graphql`, and so on.
+- Use one global `/graphql` only if we later add a dedicated GraphQL gateway or
+  federation layer.
 
 Important: browser clients should not be allowed to spoof identity headers.
 Kong overwrites those headers from verified token claims before forwarding to

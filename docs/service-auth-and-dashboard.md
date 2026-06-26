@@ -27,7 +27,7 @@ Task-tracker service:
   - `X-Tenant-ID`
   - `X-Tenant-Slug`
   - `X-User-Role`
-- Exposes a superadmin-only `/graphql` dashboard endpoint.
+- Exposes a superadmin-only `/tasks/graphql` dashboard endpoint.
 - Uses Auth gRPC for internal service-to-service calls, such as dashboard user
   stats.
 
@@ -64,7 +64,25 @@ typed generated clients and servers
 Endpoint:
 
 ```text
-POST /graphql
+POST /tasks/graphql
+```
+
+Each service should own its GraphQL path while we are using Kong as a simple API
+gateway:
+
+```text
+/tasks/graphql
+/expenses/graphql
+```
+
+A single public `/graphql` should only be used later if we add a dedicated
+GraphQL gateway or federation service that knows how to route and compose
+schemas across services.
+
+Schema file:
+
+```text
+services/task-tracker/graphql/schema.graphql
 ```
 
 Example query:
