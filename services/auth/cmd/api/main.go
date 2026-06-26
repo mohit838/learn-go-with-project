@@ -4,11 +4,16 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 
+	authinfra "github.com/mohit838/learn-go-with-project/internal/auth/infrastructure"
+	authtransport "github.com/mohit838/learn-go-with-project/internal/auth/transport"
 	"github.com/mohit838/learn-go-with-project/internal/config"
 	"github.com/mohit838/learn-go-with-project/internal/database"
+	_ "github.com/mohit838/learn-go-with-project/internal/grpcx"
 	"github.com/mohit838/learn-go-with-project/internal/router"
+	"google.golang.org/grpc"
 )
 
 func main() {
@@ -83,6 +88,20 @@ func main() {
 
 	// Initialize HTTP router with all middleware
 	handler := router.NewRouter(db, mongoDB, redisClient, minioClient, cfg.MinIOBucket, cfg)
+	authRepo := authinfra.NewAuthRepository(db)
+	grpcServer := grpc.NewServer()
+	authtransport.RegisterAuthGRPCServer(grpcServer, authtransport.NewAuthGRPCServer(authRepo))
+	go func() {
+		listener, err := net.Listen("tcp", ":"+cfg.GRPCPort)
+		if err != nil {
+			log.Fatalf("gRPC listener failed: %v", err)
+		}
+		log.Printf("gRPC server starting on port %s...\n", cfg.GRPCPort)
+		if err := grpcServer.Serve(listener); err != nil {
+			log.Fatalf("gRPC server failed: %v", err)
+		}
+	}()
+	defer grpcServer.GracefulStop()
 
 	// Start HTTP server on configured port
 	log.Printf("Server starting on port %s...\n", cfg.AppPort)

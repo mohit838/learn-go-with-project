@@ -47,7 +47,19 @@ services:
       - name: task-tracker-route-local
         paths:
           - /tasks
-        strip_path: true
+        strip_path: false
+        plugins:
+          - name: rate-limiting
+            config:
+              minute: 300
+              policy: local
+              limit_by: ip
+              hide_client_headers: false
+
+      - name: task-tracker-graphql-route-local
+        paths:
+          - /graphql
+        strip_path: false
         plugins:
           - name: rate-limiting
             config:

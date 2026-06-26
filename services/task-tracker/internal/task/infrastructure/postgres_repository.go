@@ -187,3 +187,81 @@ func requireAffected(result sql.Result) error {
 	}
 	return nil
 }
+
+func (r *TaskRepository) DashboardStats(ctx context.Context) (domain.TaskDashboardStats, error) {
+	var stats domain.TaskDashboardStats
+	if err := r.db.QueryRowContext(ctx, `
+	SELECT
+		COUNT(*),
+		COUNT(*) FILTER (WHERE is_active = TRUE),
+		COUNT(*) FILTER (WHERE is_active = FALSE)
+	FROM tasks`).Scan(&stats.Total, &stats.Active, &stats.Inactive); err != nil {
+		return domain.TaskDashboardStats{}, err
+	}
+
+	statusRows, err := r.db.QueryContext(ctx, `
+	SELECT status, COUNT(*)
+	FROM tasks
+	GROUP BY status
+	ORDER BY status`)
+	if err != nil {
+		return domain.TaskDashboardStats{}, err
+	}
+	defer statusRows.Close()
+	for statusRows.Next() {
+		var item domain.StatusTaskCount
+		if err := statusRows.Scan(&item.Status, &item.Count); err != nil {
+			return domain.TaskDashboardStats{}, err
+		}
+		stats.ByStatus = append(stats.ByStatus, item)
+	}
+	if err := statusRows.Err(); err != nil {
+		return domain.TaskDashboardStats{}, err
+	}
+
+	priorityRows, err := r.db.QueryContext(ctx, `
+	SELECT priority, COUNT(*)
+	FROM tasks
+	GROUP BY priority
+	ORDER BY priority`)
+	if err != nil {
+		return domain.TaskDashboardStats{}, err
+	}
+	defer priorityRows.Close()
+	for priorityRows.Next() {
+		var item domain.PriorityTaskCount
+		if err := priorityRows.Scan(&item.Priority, &item.Count); err != nil {
+			return domain.TaskDashboardStats{}, err
+		}
+		stats.ByPriority = append(stats.ByPriority, item)
+	}
+	if err := priorityRows.Err(); err != nil {
+		return domain.TaskDashboardStats{}, err
+	}
+
+	userRows, err := r.db.QueryContext(ctx, `
+	SELECT
+		user_id::text,
+		COUNT(*),
+		COUNT(*) FILTER (WHERE is_active = TRUE),
+		COUNT(*) FILTER (WHERE is_active = FALSE)
+	FROM tasks
+	GROUP BY user_id
+	ORDER BY COUNT(*) DESC, user_id::text ASC`)
+	if err != nil {
+		return domain.TaskDashboardStats{}, err
+	}
+	defer userRows.Close()
+	for userRows.Next() {
+		var item domain.UserTaskCount
+		if err := userRows.Scan(&item.UserID, &item.Total, &item.Active, &item.Inactive); err != nil {
+			return domain.TaskDashboardStats{}, err
+		}
+		stats.ByUser = append(stats.ByUser, item)
+	}
+	if err := userRows.Err(); err != nil {
+		return domain.TaskDashboardStats{}, err
+	}
+
+	return stats, nil
+}

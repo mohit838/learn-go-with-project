@@ -17,8 +17,9 @@ type Cfg struct {
 
 	LogLevel string
 
-	JWTSecret string
-	JWTIssuer string
+	JWTSecret       string
+	JWTIssuer       string
+	AuthGRPCAddress string
 
 	DBHost     string
 	DBPort     string
@@ -64,8 +65,9 @@ func LoadConfig(path string) (Cfg, error) {
 
 		LogLevel: getEnv("APP_LOG_LEVEL", ""),
 
-		JWTSecret: getEnv("JWT_SECRET", "local-dev-secret-change-me"),
-		JWTIssuer: getEnv("JWT_ISSUER", "auth-service"),
+		JWTSecret:       getEnv("JWT_SECRET", "local-dev-secret-change-me"),
+		JWTIssuer:       getEnv("JWT_ISSUER", "auth-service"),
+		AuthGRPCAddress: getEnv("AUTH_GRPC_ADDRESS", "localhost:8584"),
 
 		DBHost:     getEnv("DB_HOST", ""),
 		DBPort:     getEnv("DB_PORT", ""),

@@ -9,6 +9,7 @@ import (
 	"github.com/mohit838/learn-go-with-project/internal/config"
 	"github.com/mohit838/learn-go-with-project/internal/database"
 	"github.com/mohit838/learn-go-with-project/internal/router"
+	taskinfra "github.com/mohit838/learn-go-with-project/internal/task/infrastructure"
 )
 
 func main() {
@@ -80,12 +81,19 @@ func main() {
 	}
 	log.Printf(">>-->> MinIO connected | Bucket: %s", cfg.MinIOBucket)
 
+	authClient, err := taskinfra.NewAuthGRPCClient(cfg.AuthGRPCAddress)
+	if err != nil {
+		log.Fatalf("error creating Auth gRPC client: %v", err)
+	}
+	defer authClient.Close()
+	log.Printf(">>-->> Auth gRPC configured | Address: %s", cfg.AuthGRPCAddress)
+
 	// ========================
 	// Initialize Router & Start Server
 	// ========================
 
 	// Initialize HTTP router with all middleware
-	handler := router.NewRouter(db, mongoDB, redisClient, minioClient, cfg.MinIOBucket, cfg)
+	handler := router.NewRouter(db, mongoDB, redisClient, minioClient, cfg.MinIOBucket, cfg, authClient)
 
 	// Start HTTP server on configured port
 	log.Printf("Server starting on port %s...\n", cfg.AppPort)

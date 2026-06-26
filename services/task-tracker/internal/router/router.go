@@ -18,7 +18,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func NewRouter(db *sql.DB, mongoDB *mongo.Database, redisClient *redis.Client, minioClient *minio.Client, minioBucket string, cfg config.Cfg) http.Handler {
+func NewRouter(db *sql.DB, mongoDB *mongo.Database, redisClient *redis.Client, minioClient *minio.Client, minioBucket string, cfg config.Cfg, authClient *infrastructure.AuthGRPCClient) http.Handler {
 	r := chi.NewRouter()
 
 	// A good base middleware stack
@@ -46,10 +46,12 @@ func NewRouter(db *sql.DB, mongoDB *mongo.Database, redisClient *redis.Client, m
 	imageStorage := infrastructure.NewMinIOImageStorage(minioClient, minioBucket)
 	taskService := application.NewTaskService(taskRepo, imageStorage)
 	taskHandler := transport.NewTaskHandler(taskService)
+	dashboardService := application.NewDashboardService(taskRepo, authClient)
+	graphQLHandler := transport.NewGraphQLHandler(dashboardService)
 	tokenService := application.NewTokenService(cfg.JWTSecret, cfg.JWTIssuer)
 
 	r.Group(func(r chi.Router) {
-		r.Use(transport.RequireAuth(tokenService))
+		r.Use(transport.RequireAuth(tokenService, authClient))
 		r.Post(constants.RouteTasks, taskHandler.Create)
 		r.Get(constants.RouteTasks, taskHandler.List)
 		r.Get(constants.RouteTaskByID, taskHandler.FindByID)
@@ -57,6 +59,7 @@ func NewRouter(db *sql.DB, mongoDB *mongo.Database, redisClient *redis.Client, m
 		r.Patch(constants.RouteTaskByID, taskHandler.Update)
 		r.Patch(constants.RouteTaskInactive, taskHandler.MarkInactive)
 		r.Delete(constants.RouteTaskByID, taskHandler.Delete)
+		r.Post(constants.RouteGraphQL, graphQLHandler.ServeHTTP)
 	})
 
 	// ========================

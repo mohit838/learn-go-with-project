@@ -105,11 +105,13 @@ respond predictably when the provider is unavailable.
 
 ## 9. gRPC Between Services
 
-- Start only after REST CRUD and service boundaries are clear.
-- Define a small `.proto` contract, generate Go code, and add a gRPC server to
-  one service.
-- Let another service call one read-only method first.
-- Add deadlines, error mapping, and a local integration test.
+- Initial learning version is now added:
+  - Auth exposes `CheckUser` and `UserStats` over gRPC.
+  - Task-tracker calls Auth gRPC for authoritative Bearer-token user checks.
+  - Task-tracker uses Auth gRPC user stats in the superadmin dashboard.
+- Next hardening step: replace the temporary JSON gRPC codec with generated
+  protobuf contracts.
+- Add deadlines, richer error mapping, and a local integration test.
 
 **Done when:** one service-to-service request works through gRPC with a stable,
 versioned contract.

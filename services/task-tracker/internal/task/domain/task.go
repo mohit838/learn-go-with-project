@@ -73,6 +73,7 @@ type Repository interface {
 	Delete(ctx context.Context, tenantID, userID, id string) error
 	FindByID(ctx context.Context, tenantID, userID, id string) (Task, error)
 	List(ctx context.Context, filter ListTaskFilter) ([]Task, int64, error)
+	DashboardStats(ctx context.Context) (TaskDashboardStats, error)
 }
 
 type ImageUpload struct {
@@ -85,4 +86,30 @@ type ImageUpload struct {
 
 type ImageStorage interface {
 	UploadTaskImage(ctx context.Context, tenantID, userID string, upload ImageUpload) (objectKey string, publicURL string, err error)
+}
+
+type TaskDashboardStats struct {
+	Total      int64
+	Active     int64
+	Inactive   int64
+	ByStatus   []StatusTaskCount
+	ByPriority []PriorityTaskCount
+	ByUser     []UserTaskCount
+}
+
+type StatusTaskCount struct {
+	Status string
+	Count  int64
+}
+
+type PriorityTaskCount struct {
+	Priority string
+	Count    int64
+}
+
+type UserTaskCount struct {
+	UserID   string
+	Total    int64
+	Active   int64
+	Inactive int64
 }

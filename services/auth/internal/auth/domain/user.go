@@ -34,7 +34,9 @@ type CreateUserInput struct {
 type Repository interface {
 	CreateTenantUser(ctx context.Context, input CreateUserInput) (AuthUser, error)
 	FindUserForLogin(ctx context.Context, tenantSlug, email string) (AuthUser, error)
+	FindUserByPublicID(ctx context.Context, publicID string) (AuthUser, error)
 	ListUsers(ctx context.Context, filter UserListFilter) ([]AuthUser, int64, error)
+	UserStats(ctx context.Context) (UserStats, error)
 }
 
 type UserListFilter struct {
@@ -45,4 +47,24 @@ type UserListFilter struct {
 	TenantName string
 	Limit      int
 	Offset     int
+}
+
+type UserStats struct {
+	Total    int64
+	Active   int64
+	Inactive int64
+	ByRole   []RoleUserCount
+	ByTenant []TenantUserCount
+}
+
+type RoleUserCount struct {
+	Role  string
+	Count int64
+}
+
+type TenantUserCount struct {
+	TenantID   string
+	TenantName string
+	TenantSlug string
+	Count      int64
 }

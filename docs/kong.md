@@ -14,6 +14,7 @@ Current routes:
 | --- | --- | --- |
 | `http://localhost:8000/auth` | `/auth` | `http://auth:8484` |
 | `http://localhost:8000/tasks` | `/tasks` | `http://task-tracker:8485` |
+| `http://localhost:8000/graphql` | `/graphql` | `http://task-tracker:8485` |
 | `http://localhost:8000/expenses` | `/expenses` | `http://expense-tracker:8486` |
 
 The config lives in [`kong/kong.yml`](../kong/kong.yml).
@@ -239,6 +240,19 @@ Client -> Kong checks token -> service receives trusted request
 ```
 
 This keeps repeated security checks out of every service. The service should still validate important business rules, but Kong can handle common edge security.
+
+Current project shape:
+
+- Auth login/register remains public through `/auth`.
+- Task-tracker accepts gateway identity headers when Kong provides them:
+  `X-User-ID`, `X-Tenant-ID`, `X-Tenant-Slug`, and `X-User-Role`.
+- Until Kong JWT/OIDC is configured, task-tracker keeps a Bearer-token fallback
+  for local development.
+- The task dashboard is exposed through `/graphql` and still checks the
+  `superadmin` business rule inside the service.
+
+Important: browser clients should not be allowed to spoof identity headers.
+Only Kong or another trusted internal gateway should set those headers.
 
 ## Real Scenario: Rate Limiting
 

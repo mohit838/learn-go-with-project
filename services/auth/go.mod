@@ -11,6 +11,7 @@ require (
 	github.com/swaggo/swag v1.16.6
 	go.mongodb.org/mongo-driver v1.17.9
 	golang.org/x/crypto v0.51.0
+	google.golang.org/grpc v1.81.1
 )
 
 require (
@@ -58,5 +59,7 @@ require (
 	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/text v0.37.0 // indirect
 	golang.org/x/tools v0.44.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260226221140-a57be14db171 // indirect
+	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )

@@ -14,6 +14,7 @@ type Cfg struct {
 
 	AppPort  string
 	AppDebug bool
+	GRPCPort string
 
 	LogLevel string
 
@@ -63,6 +64,7 @@ func LoadConfig(path string) (Cfg, error) {
 
 		AppPort:  getEnv("APP_PORT", ""),
 		AppDebug: getEnvAsBool("APP_DEBUG", false),
+		GRPCPort: getEnv("GRPC_PORT", "8584"),
 
 		LogLevel: getEnv("APP_LOG_LEVEL", ""),
 

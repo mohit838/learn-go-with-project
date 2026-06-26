@@ -116,6 +116,48 @@ WHERE t.slug = LOWER($1)
 	return user, err
 }
 
+func (r *AuthRepository) FindUserByPublicID(ctx context.Context, publicID string) (domain.AuthUser, error) {
+	var user domain.AuthUser
+	err := r.db.QueryRowContext(ctx, `
+	SELECT
+		u.id,
+		u.public_id::text,
+		u.tenant_id,
+		t.public_id::text,
+		t.name,
+		t.slug,
+		u.role_id,
+		ro.name,
+		u.username,
+		u.email,
+		u.password_hash,
+		u.is_active,
+		u.created_at,
+		u.updated_at
+	FROM users u
+	JOIN tenants t ON t.id = u.tenant_id
+	JOIN roles ro ON ro.id = u.role_id
+	WHERE u.public_id::text = $1
+		AND t.is_active = TRUE
+		AND ro.is_active = TRUE`, strings.TrimSpace(publicID)).Scan(
+		&user.ID,
+		&user.PublicID,
+		&user.TenantID,
+		&user.TenantPublicID,
+		&user.TenantName,
+		&user.TenantSlug,
+		&user.RoleID,
+		&user.RoleName,
+		&user.Username,
+		&user.Email,
+		&user.PasswordHash,
+		&user.IsActive,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+	return user, err
+}
+
 func (r *AuthRepository) ListUsers(ctx context.Context, filter domain.UserListFilter) ([]domain.AuthUser, int64, error) {
 	where, args := buildUserListWhere(filter)
 
@@ -216,4 +258,60 @@ func buildUserListWhere(filter domain.UserListFilter) (string, []any) {
 		return "", args
 	}
 	return " WHERE " + strings.Join(clauses, " AND "), args
+}
+
+func (r *AuthRepository) UserStats(ctx context.Context) (domain.UserStats, error) {
+	var stats domain.UserStats
+	if err := r.db.QueryRowContext(ctx, `
+	SELECT
+		COUNT(*),
+		COUNT(*) FILTER (WHERE u.is_active = TRUE),
+		COUNT(*) FILTER (WHERE u.is_active = FALSE)
+	FROM users u`).Scan(&stats.Total, &stats.Active, &stats.Inactive); err != nil {
+		return domain.UserStats{}, err
+	}
+
+	roleRows, err := r.db.QueryContext(ctx, `
+	SELECT ro.name, COUNT(*)
+	FROM users u
+	JOIN roles ro ON ro.id = u.role_id
+	GROUP BY ro.name
+	ORDER BY ro.name`)
+	if err != nil {
+		return domain.UserStats{}, err
+	}
+	defer roleRows.Close()
+	for roleRows.Next() {
+		var item domain.RoleUserCount
+		if err := roleRows.Scan(&item.Role, &item.Count); err != nil {
+			return domain.UserStats{}, err
+		}
+		stats.ByRole = append(stats.ByRole, item)
+	}
+	if err := roleRows.Err(); err != nil {
+		return domain.UserStats{}, err
+	}
+
+	tenantRows, err := r.db.QueryContext(ctx, `
+	SELECT t.public_id::text, t.name, t.slug, COUNT(*)
+	FROM users u
+	JOIN tenants t ON t.id = u.tenant_id
+	GROUP BY t.public_id, t.name, t.slug
+	ORDER BY COUNT(*) DESC, t.name ASC`)
+	if err != nil {
+		return domain.UserStats{}, err
+	}
+	defer tenantRows.Close()
+	for tenantRows.Next() {
+		var item domain.TenantUserCount
+		if err := tenantRows.Scan(&item.TenantID, &item.TenantName, &item.TenantSlug, &item.Count); err != nil {
+			return domain.UserStats{}, err
+		}
+		stats.ByTenant = append(stats.ByTenant, item)
+	}
+	if err := tenantRows.Err(); err != nil {
+		return domain.UserStats{}, err
+	}
+
+	return stats, nil
 }
