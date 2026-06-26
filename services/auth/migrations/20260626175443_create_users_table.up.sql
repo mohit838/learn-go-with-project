@@ -2,6 +2,7 @@ CREATE TABLE users (
 	id BIGSERIAL PRIMARY KEY,
 	public_id UUID NOT NULL DEFAULT gen_random_uuid(),
 	tenant_id BIGINT NOT NULL REFERENCES tenants(id) ON DELETE RESTRICT,
+	role_id BIGINT NOT NULL REFERENCES roles(id) ON DELETE RESTRICT,
 	username VARCHAR(100) NOT NULL,
 	email VARCHAR(255) NOT NULL,
 	password_hash TEXT NOT NULL,
@@ -21,6 +22,9 @@ CREATE UNIQUE INDEX users_tenant_email_unique_idx
 
 CREATE INDEX users_tenant_id_idx
 	ON users (tenant_id);
+
+CREATE INDEX users_role_id_idx
+	ON users (role_id);
 
 CREATE INDEX users_is_active_idx
 	ON users (is_active);

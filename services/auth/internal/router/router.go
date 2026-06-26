@@ -8,7 +8,12 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/minio/minio-go/v7"
+	"github.com/mohit838/learn-go-with-project/internal/config"
+	"github.com/mohit838/learn-go-with-project/internal/constants"
+	"github.com/mohit838/learn-go-with-project/internal/handler"
+	"github.com/mohit838/learn-go-with-project/internal/repository"
 	"github.com/mohit838/learn-go-with-project/internal/response"
+	authservice "github.com/mohit838/learn-go-with-project/internal/service"
 	"github.com/redis/go-redis/v9"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -19,7 +24,7 @@ import (
 //   - mongoDB: MongoDB database for audit logging (auth_logs collection)
 //   - redisClient: Redis client for caching (Database 0)
 //   - minioClient: MinIO client for object storage
-func NewRouter(db *sql.DB, mongoDB *mongo.Database, redisClient *redis.Client, minioClient *minio.Client, minioBucket string) http.Handler {
+func NewRouter(db *sql.DB, mongoDB *mongo.Database, redisClient *redis.Client, minioClient *minio.Client, minioBucket string, cfg config.Cfg) http.Handler {
 	r := chi.NewRouter()
 
 	// ========================
@@ -42,19 +47,32 @@ func NewRouter(db *sql.DB, mongoDB *mongo.Database, redisClient *redis.Client, m
 		redisClient:  redisClient,
 		minioClient:  minioClient,
 		minioBucket:  minioBucket,
-		serviceName:  "auth-service",
-		serviceTitle: "Auth Service",
+		serviceName:  constants.ServiceName,
+		serviceTitle: constants.ServiceTitle,
 	})
+
+	authRepo := repository.NewAuthRepository(db)
+	tokenService := authservice.NewTokenService(
+		cfg.JWTSecret,
+		cfg.JWTIssuer,
+		time.Duration(cfg.AccessTokenMinutes)*time.Minute,
+		time.Duration(cfg.RefreshTokenHours)*time.Hour,
+	)
+	authService := authservice.NewAuthService(authRepo, tokenService)
+	authHandler := handler.NewAuthHandler(authService)
+
+	r.Post(constants.RouteRegister, authHandler.Register)
+	r.Post(constants.RouteLogin, authHandler.Login)
 
 	// ========================
 	// MongoDB Endpoints
 	// ========================
 	// POST /logs - Create audit log entry in MongoDB
 	// Example: curl -X POST http://localhost:8484/logs
-	r.Post("/logs", func(w http.ResponseWriter, r *http.Request) {
-		collection := mongoDB.Collection("auth_logs")
+	r.Post(constants.RouteLogs, func(w http.ResponseWriter, r *http.Request) {
+		collection := mongoDB.Collection(constants.AuditLogCollection)
 		_, err := collection.InsertOne(r.Context(), map[string]any{
-			"action":    "login",
+			"action":    constants.DefaultLogAction,
 			"timestamp": time.Now(),
 		})
 		if err != nil {
@@ -62,7 +80,7 @@ func NewRouter(db *sql.DB, mongoDB *mongo.Database, redisClient *redis.Client, m
 			return
 		}
 		response.Success(w, http.StatusCreated, "log created", map[string]string{
-			"collection": "auth_logs",
+			"collection": constants.AuditLogCollection,
 		})
 	})
 
@@ -71,20 +89,20 @@ func NewRouter(db *sql.DB, mongoDB *mongo.Database, redisClient *redis.Client, m
 	// ========================
 	// POST /cache - Set a cache value (1 hour TTL)
 	// Example: curl -X POST http://localhost:8484/cache
-	r.Post("/cache", func(w http.ResponseWriter, r *http.Request) {
-		err := redisClient.Set(r.Context(), "test_key", "test_value", 1*time.Hour).Err()
+	r.Post(constants.RouteCache, func(w http.ResponseWriter, r *http.Request) {
+		err := redisClient.Set(r.Context(), constants.DefaultCacheKey, constants.DefaultCacheValue, 1*time.Hour).Err()
 		if err != nil {
 			response.Error(w, http.StatusInternalServerError, "failed to set cache", err.Error())
 			return
 		}
 		response.Success(w, http.StatusCreated, "cache set", map[string]string{
-			"key": "test_key",
+			"key": constants.DefaultCacheKey,
 		})
 	})
 
 	// GET /cache/:key - Retrieve a cache value
 	// Example: curl http://localhost:8484/cache/test_key
-	r.Get("/cache/:key", func(w http.ResponseWriter, r *http.Request) {
+	r.Get(constants.RouteCacheKey, func(w http.ResponseWriter, r *http.Request) {
 		key := chi.URLParam(r, "key")
 		val, err := redisClient.Get(r.Context(), key).Result()
 		if err != nil {

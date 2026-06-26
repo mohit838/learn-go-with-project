@@ -24,6 +24,8 @@ const (
 	RouteHealthRedis    = "/health/redis"
 	RouteHealthMongo    = "/health/mongo"
 	RouteHealthMinIO    = "/health/minio"
+	RouteRegister       = "/register"
+	RouteLogin          = "/login"
 	RouteLogs           = "/logs"
 	RouteCache          = "/cache"
 	RouteCacheKey       = "/cache/{key}"
@@ -34,4 +36,5 @@ const (
 	DefaultLogAction   = "login"
 	DefaultCacheKey    = "test_key"
 	DefaultCacheValue  = "test_value"
+	DefaultRoleGuest   = "guest"
 )

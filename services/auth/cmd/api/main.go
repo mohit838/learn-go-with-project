@@ -82,7 +82,7 @@ func main() {
 	// ========================
 
 	// Initialize HTTP router with all middleware
-	handler := router.NewRouter(db, mongoDB, redisClient, minioClient, cfg.MinIOBucket)
+	handler := router.NewRouter(db, mongoDB, redisClient, minioClient, cfg.MinIOBucket, cfg)
 
 	// Start HTTP server on configured port
 	log.Printf("Server starting on port %s...\n", cfg.AppPort)

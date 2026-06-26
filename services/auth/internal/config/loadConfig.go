@@ -17,6 +17,11 @@ type Cfg struct {
 
 	LogLevel string
 
+	JWTSecret          string
+	JWTIssuer          string
+	AccessTokenMinutes int
+	RefreshTokenHours  int
+
 	DBHost     string
 	DBPort     string
 	DBUser     string
@@ -60,6 +65,11 @@ func LoadConfig(path string) (Cfg, error) {
 		AppDebug: getEnvAsBool("APP_DEBUG", false),
 
 		LogLevel: getEnv("APP_LOG_LEVEL", ""),
+
+		JWTSecret:          getEnv("JWT_SECRET", "local-dev-secret-change-me"),
+		JWTIssuer:          getEnv("JWT_ISSUER", "auth-service"),
+		AccessTokenMinutes: getEnvAsInt("ACCESS_TOKEN_MINUTES", 15),
+		RefreshTokenHours:  getEnvAsInt("REFRESH_TOKEN_HOURS", 168),
 
 		DBHost:     getEnv("DB_HOST", ""),
 		DBPort:     getEnv("DB_PORT", ""),
@@ -115,4 +125,19 @@ func getEnvAsBool(key string, defaultValue bool) bool {
 	}
 
 	return boolValue
+}
+
+func getEnvAsInt(key string, defaultValue int) int {
+	value := os.Getenv(key)
+
+	if value == "" {
+		return defaultValue
+	}
+
+	intValue, err := strconv.Atoi(value)
+	if err != nil {
+		return defaultValue
+	}
+
+	return intValue
 }
