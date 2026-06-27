@@ -105,6 +105,13 @@ Create a migration:
 go -C services/auth run ./cmd/migrate make create_users_table
 ```
 
+The library also accepts `create` and `new` as aliases:
+
+```sh
+go -C services/auth run ./cmd/migrate create create_users_table
+go -C services/auth run ./cmd/migrate new create_users_table
+```
+
 Run migrations:
 
 ```sh
@@ -172,20 +179,34 @@ migrations/
 In `cmd/migrate/main.go`, load env, connect to DB, then use:
 
 ```go
-runner := migration.NewRunner(db, migration.Config{
+args := os.Args[1:]
+runnerConfig := migration.Config{
 	Dir:         "migrations",
 	ServiceName: "my-service",
-})
+}
+if !migration.NeedsDatabase(args) {
+	runner := migration.NewRunner(nil, runnerConfig)
+	if err := runner.Run(context.Background(), args); err != nil {
+		log.Fatal(err)
+	}
+	return
+}
 
-if err := runner.Run(context.Background(), os.Args[1:]); err != nil {
+// Load env and connect to DB here for up/status/rollback.
+runner := migration.NewRunner(db, runnerConfig)
+
+if err := runner.Run(context.Background(), args); err != nil {
 	log.Fatal(err)
 }
 ```
+
+This keeps file generation commands from requiring a live database connection.
 
 Then run inside that app:
 
 ```sh
 go run ./cmd/migrate make create_users_table
+go run ./cmd/migrate create create_users_table
 go run ./cmd/migrate up
 go run ./cmd/migrate status
 go run ./cmd/migrate rollback
@@ -218,6 +239,10 @@ Example:
 
 Do not edit an already applied `.up.sql` file. The checksum check will fail.
 Create a new migration instead.
+
+The library also prevents generated files from overwriting existing migration
+files, validates 14-digit timestamp versions, and lets callers inject a writer
+for command output.
 
 ## Why Not Public Yet
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -15,12 +16,16 @@ type Runner struct {
 	dir         string
 	tableName   string
 	serviceName string
+	writer      io.Writer
+	now         func() time.Time
 }
 
 type Config struct {
 	Dir         string
 	TableName   string
 	ServiceName string
+	Writer      io.Writer
+	Now         func() time.Time
 }
 
 type fileMigration struct {
@@ -45,11 +50,19 @@ func NewRunner(db *sql.DB, cfg Config) *Runner {
 	if cfg.TableName == "" {
 		cfg.TableName = "schema_migrations"
 	}
+	if cfg.Writer == nil {
+		cfg.Writer = os.Stdout
+	}
+	if cfg.Now == nil {
+		cfg.Now = time.Now
+	}
 	return &Runner{
 		db:          db,
 		dir:         cfg.Dir,
 		tableName:   cfg.TableName,
 		serviceName: cfg.ServiceName,
+		writer:      cfg.Writer,
+		now:         cfg.Now,
 	}
 }
 
@@ -82,10 +95,10 @@ func (r *Runner) Up(ctx context.Context) error {
 		ran++
 	}
 	if ran == 0 {
-		fmt.Println("Nothing to migrate.")
+		r.println("Nothing to migrate.")
 		return nil
 	}
-	fmt.Printf("%sMigrated %d migration(s).\n", r.logPrefix(), ran)
+	r.printf("%sMigrated %d migration(s).\n", r.logPrefix(), ran)
 	return nil
 }
 
@@ -103,7 +116,7 @@ func (r *Runner) Rollback(ctx context.Context) error {
 		return err
 	}
 	if len(applied) == 0 {
-		fmt.Println("Nothing to rollback.")
+		r.println("Nothing to rollback.")
 		return nil
 	}
 
@@ -123,7 +136,7 @@ func (r *Runner) Rollback(ctx context.Context) error {
 			return err
 		}
 	}
-	fmt.Printf("%sRolled back %d migration(s) from batch %d.\n", r.logPrefix(), len(toRollback), batch)
+	r.printf("%sRolled back %d migration(s) from batch %d.\n", r.logPrefix(), len(toRollback), batch)
 	return nil
 }
 
@@ -142,7 +155,7 @@ func (r *Runner) Status(ctx context.Context) error {
 	}
 
 	if len(files) == 0 {
-		fmt.Println("No migration files found.")
+		r.println("No migration files found.")
 		return nil
 	}
 	for _, file := range files {
@@ -150,12 +163,15 @@ func (r *Runner) Status(ctx context.Context) error {
 		if appliedFile, ok := applied[file.version]; ok {
 			state = fmt.Sprintf("ran batch=%d", appliedFile.batch)
 		}
-		fmt.Printf("%s%s %-8s %s\n", r.logPrefix(), file.version, state, file.name)
+		r.printf("%s%s %-8s %s\n", r.logPrefix(), file.version, state, file.name)
 	}
 	return nil
 }
 
 func (r *Runner) ensureStore(ctx context.Context) error {
+	if r.db == nil {
+		return fmt.Errorf("migration db is nil")
+	}
 	if !safeIdentifier(r.tableName) {
 		return fmt.Errorf("invalid migration table name: %s", r.tableName)
 	}
@@ -202,7 +218,7 @@ VALUES ($1, $2, $3, $4, $5, $6)`, r.tableName), file.version, file.name, r.servi
 	if err := tx.Commit(); err != nil {
 		return err
 	}
-	fmt.Println(r.logPrefix()+"Migrated", filepath.Base(file.upPath))
+	r.println(r.logPrefix()+"Migrated", filepath.Base(file.upPath))
 	return nil
 }
 
@@ -227,7 +243,7 @@ func (r *Runner) runDown(ctx context.Context, file fileMigration) error {
 	if err := tx.Commit(); err != nil {
 		return err
 	}
-	fmt.Println(r.logPrefix()+"Rolled back", filepath.Base(file.downPath))
+	r.println(r.logPrefix()+"Rolled back", filepath.Base(file.downPath))
 	return nil
 }
 
@@ -254,6 +270,14 @@ func (r *Runner) logPrefix() string {
 		return ""
 	}
 	return "[" + r.serviceName + "] "
+}
+
+func (r *Runner) printf(format string, args ...any) {
+	fmt.Fprintf(r.writer, format, args...)
+}
+
+func (r *Runner) println(args ...any) {
+	fmt.Fprintln(r.writer, args...)
 }
 
 func safeIdentifier(value string) bool {

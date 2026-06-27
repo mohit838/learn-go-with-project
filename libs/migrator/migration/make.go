@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"time"
 )
 
 func (r *Runner) Make(name string) error {
@@ -18,18 +17,18 @@ func (r *Runner) Make(name string) error {
 		return err
 	}
 
-	version := time.Now().UTC().Format("20060102150405")
+	version := r.now().UTC().Format("20060102150405")
 	upPath := filepath.Join(r.dir, version+"_"+cleanName+".up.sql")
 	downPath := filepath.Join(r.dir, version+"_"+cleanName+".down.sql")
-	if err := os.WriteFile(upPath, []byte("-- Write migration SQL here.\n"), 0644); err != nil {
+	if err := writeNewFile(upPath, []byte("-- Write migration SQL here.\n")); err != nil {
 		return err
 	}
-	if err := os.WriteFile(downPath, []byte("-- Write rollback SQL here.\n"), 0644); err != nil {
+	if err := writeNewFile(downPath, []byte("-- Write rollback SQL here.\n")); err != nil {
 		return err
 	}
 
-	fmt.Println(r.logPrefix()+"Created", upPath)
-	fmt.Println(r.logPrefix()+"Created", downPath)
+	r.println(r.logPrefix()+"Created", upPath)
+	r.println(r.logPrefix()+"Created", downPath)
 	return nil
 }
 
@@ -37,4 +36,15 @@ func sanitizeName(name string) string {
 	name = strings.ToLower(strings.TrimSpace(name))
 	name = regexp.MustCompile(`[^a-z0-9]+`).ReplaceAllString(name, "_")
 	return strings.Trim(name, "_")
+}
+
+func writeNewFile(path string, content []byte) error {
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	_, err = file.Write(content)
+	return err
 }

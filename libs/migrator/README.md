@@ -17,6 +17,13 @@ Create a migration:
 go -C services/auth run ./cmd/migrate make create_users_table
 ```
 
+Aliases are also available:
+
+```sh
+go -C services/auth run ./cmd/migrate create create_users_table
+go -C services/auth run ./cmd/migrate new create_users_table
+```
+
 Run pending migrations:
 
 ```sh
@@ -99,27 +106,41 @@ import (
 )
 
 func main() {
+	args := os.Args[1:]
+	runnerConfig := migration.Config{
+		Dir:         "migrations",
+		ServiceName: "my-service",
+	}
+	if !migration.NeedsDatabase(args) {
+		runner := migration.NewRunner(nil, runnerConfig)
+		if err := runner.Run(context.Background(), args); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
+
 	db, err := sql.Open("pgx", os.Getenv("DATABASE_URL"))
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer db.Close()
 
-	runner := migration.NewRunner(db, migration.Config{
-		Dir:         "migrations",
-		ServiceName: "my-service",
-	})
+	runner := migration.NewRunner(db, runnerConfig)
 
-	if err := runner.Run(context.Background(), os.Args[1:]); err != nil {
+	if err := runner.Run(context.Background(), args); err != nil {
 		log.Fatal(err)
 	}
 }
 ```
 
+`NeedsDatabase` lets `make`, `create`, `new`, and `help` run without opening a
+database connection. `up`, `status`, and `rollback` still require a database.
+
 Then run from that app root:
 
 ```sh
 go run ./cmd/migrate make create_users_table
+go run ./cmd/migrate create create_users_table
 go run ./cmd/migrate up
 go run ./cmd/migrate status
 go run ./cmd/migrate rollback
@@ -219,12 +240,19 @@ type Config struct {
 	Dir         string
 	TableName   string
 	ServiceName string
+	Writer      io.Writer
+	Now         func() time.Time
 }
 ```
 
 - `Dir`: migration folder. Default is `migrations`.
 - `TableName`: tracking table. Default is `schema_migrations`.
 - `ServiceName`: optional label for logs and tracking rows.
+- `Writer`: optional command output destination. Defaults to `os.Stdout`.
+- `Now`: optional clock for generated migration timestamps. Defaults to `time.Now`.
+
+`Writer` and `Now` are useful for tests, custom CLIs, and tools that want to
+capture output instead of printing directly.
 
 ## Database Support
 
@@ -253,6 +281,15 @@ Every `up` run creates a new batch number.
 `rollback` rolls back the latest batch in reverse order, similar to Laravel
 migrations.
 
+## Safety Rules
+
+- Migration filenames must be paired: `.up.sql` and `.down.sql`.
+- Migration versions must be 14-digit timestamps: `YYYYMMDDHHMMSS`.
+- Existing migration files are not overwritten by `make`, `create`, or `new`.
+- Already-applied `.up.sql` files are protected by checksum validation.
+- The tracking table name is validated before use.
+- File generation and help commands do not require a database connection.
+
 ## Production Usage
 
 Do not run migrations forever inside the API server.
@@ -260,10 +297,12 @@ Do not run migrations forever inside the API server.
 In production, run migrations only as a deploy step when schema changes:
 
 ```sh
-make migrate-up service=auth
+go -C services/auth run ./cmd/migrate up
 ```
 
 If there is no schema change, do not run migration commands.
+
+Make shortcuts are fine if your team wants them, but they are not required.
 
 ## Publishing Later
 
@@ -272,5 +311,4 @@ Before publishing this library publicly, decide:
 - PostgreSQL-only or multi-database support
 - public module path and repository name
 - tests using a temporary PostgreSQL container
-- custom logger support
 - embedded migration support with `fs.FS`

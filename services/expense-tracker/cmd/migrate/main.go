@@ -12,6 +12,19 @@ import (
 )
 
 func main() {
+	args := os.Args[1:]
+	runnerConfig := migration.Config{
+		Dir:         "migrations",
+		ServiceName: "expense-tracker",
+	}
+	if !migration.NeedsDatabase(args) {
+		runner := migration.NewRunner(nil, runnerConfig)
+		if err := runner.Run(context.Background(), args); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
+
 	cfg, err := config.LoadConfig("./.env")
 	if err != nil {
 		log.Fatalf("load config: %v", err)
@@ -23,12 +36,9 @@ func main() {
 	}
 	defer closeDB(db)
 
-	runner := migration.NewRunner(db, migration.Config{
-		Dir:         "migrations",
-		ServiceName: "expense-tracker",
-	})
+	runner := migration.NewRunner(db, runnerConfig)
 
-	if err := runner.Run(context.Background(), os.Args[1:]); err != nil {
+	if err := runner.Run(context.Background(), args); err != nil {
 		log.Fatal(err)
 	}
 }

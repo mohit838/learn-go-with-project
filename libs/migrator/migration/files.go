@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"unicode"
 )
 
 func (r *Runner) loadFiles() ([]fileMigration, error) {
@@ -38,10 +39,15 @@ func (r *Runner) loadFiles() ([]fileMigration, error) {
 			return nil, fmt.Errorf("invalid migration filename: %s", filename)
 		}
 		version, name := parts[0], parts[1]
+		if !validVersion(version) || name == "" {
+			return nil, fmt.Errorf("invalid migration filename: %s", filename)
+		}
 		item := byVersion[version]
 		if item == nil {
 			item = &fileMigration{version: version, name: name}
 			byVersion[version] = item
+		} else if item.name != name {
+			return nil, fmt.Errorf("migration version %s has conflicting names: %s and %s", version, item.name, name)
 		}
 		path := filepath.Join(r.dir, filename)
 		if direction == "up" {
@@ -67,4 +73,16 @@ func (r *Runner) loadFiles() ([]fileMigration, error) {
 		return files[i].version < files[j].version
 	})
 	return files, nil
+}
+
+func validVersion(version string) bool {
+	if len(version) != 14 {
+		return false
+	}
+	for _, char := range version {
+		if !unicode.IsDigit(char) {
+			return false
+		}
+	}
+	return true
 }
