@@ -38,3 +38,46 @@ http://localhost:9080
 ```
 
 Keep Kong on `8000` and APISIX on `9080` so both gateways can exist without port conflicts.
+
+## Dashboard Mode
+
+Run APISIX with etcd, Admin API, Dashboard UI, and a bootstrap container:
+
+```bash
+make apisix-gui-up
+```
+
+Local APISIX GUI URLs:
+
+```text
+APISIX GUI proxy:   http://localhost:9088
+APISIX Dashboard:   http://localhost:9181
+APISIX Admin API:   http://localhost:9180
+```
+
+Dashboard login for local development:
+
+```text
+username: admin
+password: admin
+```
+
+Use `VITE_API_URL=http://localhost:9088` when the frontend should call this
+dynamic APISIX gateway.
+
+Dashboard mode intentionally uses `apache/apisix:3.11.0-debian` with
+`apache/apisix-dashboard:3.0.1-alpine`. The dashboard image is older than the
+latest APISIX gateway image, and the plugin management pages can return
+`data:null` or crash when paired with newer APISIX versions. Standalone mode can
+stay on newer APISIX because it does not rely on the dashboard UI.
+
+If the official Dashboard plugin pages crash, use the local helper:
+
+```text
+apisix/plugin-manager.html
+```
+
+It talks directly to the local APISIX Admin API at
+`http://localhost:9180/apisix/admin` and can enable route-level presets for
+CORS, JWT auth, and local rate limiting. This helper is for local development
+only because it uses the Admin API key in the browser.

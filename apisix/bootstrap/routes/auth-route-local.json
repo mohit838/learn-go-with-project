@@ -1,0 +1,31 @@
+{
+  "name": "auth-route-local",
+  "uris": ["/auth", "/auth/*"],
+  "plugins": {
+    "cors": {
+      "allow_origins": "http://localhost:3000,http://localhost:5173,http://localhost:5174",
+      "allow_methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+      "allow_headers": "Accept,Authorization,Content-Type,X-Request-ID",
+      "expose_headers": "X-Request-ID",
+      "allow_credential": true,
+      "max_age": 300
+    },
+    "limit-count": {
+      "policy": "local",
+      "count": 60,
+      "time_window": 60,
+      "rejected_code": 429,
+      "key_type": "var",
+      "key": "remote_addr"
+    },
+    "proxy-rewrite": {
+      "regex_uri": ["^/auth/?(.*)", "/$1"]
+    }
+  },
+  "upstream": {
+    "type": "roundrobin",
+    "nodes": {
+      "host.docker.internal:8484": 1
+    }
+  }
+}

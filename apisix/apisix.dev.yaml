@@ -21,6 +21,7 @@ routes:
         allow_credential: true
         max_age: 300
       limit-count:
+        policy: local
         count: 60
         time_window: 60
         rejected_code: 429
@@ -87,6 +88,7 @@ routes:
               core.request.set_header(ctx, "X-User-Role", claim("role"))
             end
       limit-count:
+        policy: local
         count: 300
         time_window: 60
         rejected_code: 429
@@ -151,6 +153,7 @@ routes:
               core.request.set_header(ctx, "X-User-Role", claim("role"))
             end
       limit-count:
+        policy: local
         count: 300
         time_window: 60
         rejected_code: 429
@@ -175,6 +178,7 @@ routes:
         allow_credential: true
         max_age: 300
       limit-count:
+        policy: local
         count: 300
         time_window: 60
         rejected_code: 429

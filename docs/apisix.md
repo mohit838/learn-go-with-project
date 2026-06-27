@@ -68,6 +68,86 @@ Those images are useful for an APISIX Admin API + etcd setup. We can add that
 as a separate compose file later, but this first APISIX gateway stays simple and
 Git-configured like the current Kong DB-less setup.
 
+## Dashboard Mode
+
+Dashboard mode uses a separate compose file:
+
+```text
+docker-compose.apisix-gui.yml
+```
+
+It includes:
+
+```text
+apache/apisix:3.11.0-debian
+gcr.io/etcd-development/etcd:v3.6.12
+apache/apisix-dashboard:3.0.1-alpine
+curlimages/curl:8.11.1
+```
+
+Dashboard mode uses APISIX `3.11.0` on purpose. The available dashboard image
+is older, and its plugin management pages can crash or return `data:null` when
+paired with newer APISIX gateway builds such as `3.17.0`. Standalone APISIX
+still uses the newer image because it is YAML-driven and does not depend on the
+dashboard UI.
+
+Start it:
+
+```sh
+make apisix-gui-up
+```
+
+Stop it:
+
+```sh
+make apisix-gui-down
+```
+
+Dashboard mode URLs:
+
+```text
+APISIX GUI proxy:   http://localhost:9088
+APISIX Dashboard:   http://localhost:9181
+APISIX Admin API:   http://localhost:9180
+```
+
+Dashboard login for local development:
+
+```text
+username: admin
+password: admin
+```
+
+This mode stores routes, consumers, and plugins in etcd. The dashboard can then
+add, edit, or delete routes without changing YAML.
+
+The official Dashboard image can still be unstable on the plugin catalog pages.
+If `/apisix/admin/plugins?all=true` returns `data:null` and the browser crashes
+with `Cannot read properties of null`, use the local development helper instead:
+
+```text
+apisix/plugin-manager.html
+```
+
+That helper talks directly to the local APISIX Admin API and can enable common
+route plugins such as CORS, JWT auth, and `limit-count`. Keep it local only; do
+not expose the Admin API key to a real frontend or public network.
+
+The bootstrap container seeds the same local routes we use elsewhere:
+
+```text
+/auth
+/tasks
+/tasks/graphql
+/expenses
+```
+
+For frontend testing with dashboard mode:
+
+```env
+VITE_API_URL=http://localhost:9088
+```
+
 ## Local URLs
 
 ```text

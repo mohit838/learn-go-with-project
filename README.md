@@ -42,6 +42,12 @@ make apisix-dev
 
 APISIX also routes to locally running services through `host.docker.internal`.
 
+To try APISIX with the Dashboard UI, run:
+
+```sh
+make apisix-gui-up
+```
+
 Start everything in Docker when you want a full container check:
 
 ```sh
@@ -63,6 +69,12 @@ Open the services through APISIX:
 - Task tracker: http://localhost:9080/tasks
 - Task GraphQL: http://localhost:9080/tasks/graphql
 - Expense tracker: http://localhost:9080/expenses
+
+Open APISIX Dashboard mode:
+
+- APISIX GUI proxy: http://localhost:9088
+- APISIX Dashboard: http://localhost:9181
+- APISIX Admin API: http://localhost:9180
 
 Stop the stack:
 
@@ -97,6 +109,7 @@ make fmt
 make tidy
 make gateway
 make apisix
+make apisix-gui
 ```
 
 Migration helpers use the `service` name from the `services/` folder:
@@ -122,6 +135,7 @@ make migrate-rollback service=auth
 .
 ├── docker-compose.yml
 ├── docker-compose.apisix.yml
+├── docker-compose.apisix-gui.yml
 ├── apisix/
 │   └── apisix.dev.yaml
 ├── kong/
