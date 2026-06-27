@@ -24,15 +24,19 @@ func NewDashboardService(repo domain.Repository, auth AuthStatsProvider) *Dashbo
 	return &DashboardService{repo: repo, auth: auth}
 }
 
+// Summary builds the superadmin dashboard from two service boundaries:
+// task-tracker repository for task counts, and auth gRPC for user counts.
 func (s *DashboardService) Summary(ctx context.Context, user domain.UserContext) (DashboardResponse, error) {
 	if !isSuperadmin(user.Role) {
 		return DashboardResponse{}, ErrForbidden
 	}
 
+	// Task data belongs to task-tracker, so we query our own repository.
 	taskStats, err := s.repo.DashboardStats(ctx)
 	if err != nil {
 		return DashboardResponse{}, err
 	}
+	// User data belongs to auth, so we ask auth over gRPC instead of sharing DBs.
 	userStats, err := s.auth.UserStats(ctx)
 	if err != nil {
 		return DashboardResponse{}, err

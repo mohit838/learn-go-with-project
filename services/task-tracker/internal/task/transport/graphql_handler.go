@@ -18,23 +18,32 @@ func NewGraphQLHandler(dashboard *application.DashboardService) *GraphQLHandler 
 	return &GraphQLHandler{dashboard: dashboard}
 }
 
+// ServeHTTP is a tiny GraphQL endpoint for one dashboard query.
+//
+// This is not a full GraphQL execution engine yet. It accepts the normal
+// GraphQL-over-HTTP JSON shape, checks that the query asks for "dashboard", then
+// delegates to the application service. That keeps the learning path simple.
 func (h *GraphQLHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// The gateway already validated the JWT and wrote trusted identity headers.
+	// RequireGatewayAuth converted those headers into UserContext.
 	user, ok := UserFromContext(r.Context())
 	if !ok {
 		response.Error(w, http.StatusUnauthorized, "missing user context", nil)
 		return
 	}
 
-	var req graphQLRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	req, err := readGraphQLRequest(r)
+	if err != nil {
 		writeGraphQLErrors(w, http.StatusBadRequest, "invalid GraphQL request")
 		return
 	}
-	if !strings.Contains(req.Query, "dashboard") {
+	if !isDashboardQuery(req.Query) {
 		writeGraphQLErrors(w, http.StatusBadRequest, "only dashboard query is supported")
 		return
 	}
 
+	// Business authorization stays in the application service. The transport
+	// layer only translates HTTP/GraphQL into a service call.
 	result, err := h.dashboard.Summary(r.Context(), user)
 	if err != nil {
 		if errors.Is(err, application.ErrForbidden) {
@@ -48,6 +57,16 @@ func (h *GraphQLHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	writeGraphQLData(w, http.StatusOK, map[string]any{
 		"dashboard": result,
 	})
+}
+
+func readGraphQLRequest(r *http.Request) (graphQLRequest, error) {
+	var req graphQLRequest
+	err := json.NewDecoder(r.Body).Decode(&req)
+	return req, err
+}
+
+func isDashboardQuery(query string) bool {
+	return strings.Contains(strings.ToLower(query), "dashboard")
 }
 
 type graphQLRequest struct {

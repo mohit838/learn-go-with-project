@@ -1,6 +1,14 @@
 services:
+  zipkin:
+    image: openzipkin/zipkin:3.5
+    ports:
+      - "9411:9411"
+    restart: unless-stopped
+
   kong:
     image: kong:3.9
+    depends_on:
+      - zipkin
     environment:
       KONG_DATABASE: "off"
       KONG_DECLARATIVE_CONFIG: /kong/declarative/kong.yml

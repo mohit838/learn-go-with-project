@@ -4,15 +4,18 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/mohit838/learn-go-with-project/internal/grpcx"
+	"github.com/mohit838/learn-go-with-project/internal/authrpc"
 	"github.com/mohit838/learn-go-with-project/internal/task/application"
 	"github.com/mohit838/learn-go-with-project/internal/task/domain"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-const authServiceName = "auth.v1.AuthService"
-
+// AuthGRPCClient is task-tracker's private client for auth service.
+//
+// Normal HTTP requests trust gateway headers after APISIX/Kong validates JWTs.
+// This client is for service-to-service questions that only auth can answer,
+// such as "give me user dashboard counts" or stricter future user checks.
 type AuthGRPCClient struct {
 	conn *grpc.ClientConn
 }
@@ -21,7 +24,6 @@ func NewAuthGRPCClient(address string) (*AuthGRPCClient, error) {
 	conn, err := grpc.NewClient(
 		address,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithDefaultCallOptions(grpc.CallContentSubtype(grpcx.CodecName)),
 	)
 	if err != nil {
 		return nil, err
@@ -33,11 +35,16 @@ func (c *AuthGRPCClient) Close() error {
 	return c.conn.Close()
 }
 
+// CheckUser asks auth for the current truth about a user.
+//
+// We do not call this on every request because the gateway already validates
+// access tokens. Keep this for stricter business rules, for example before a
+// sensitive cross-service action.
 func (c *AuthGRPCClient) CheckUser(ctx context.Context, user domain.UserContext) (domain.UserContext, error) {
-	var res checkUserResponse
-	err := c.conn.Invoke(ctx, "/"+authServiceName+"/CheckUser", checkUserRequest{
-		UserID:   user.UserID,
-		TenantID: user.TenantID,
+	var res authrpc.CheckUserResponse
+	err := c.conn.Invoke(ctx, "/"+authrpc.ServiceName+"/CheckUser", &authrpc.CheckUserRequest{
+		UserId:   user.UserID,
+		TenantId: user.TenantID,
 	}, &res)
 	if err != nil {
 		return domain.UserContext{}, err
@@ -46,16 +53,19 @@ func (c *AuthGRPCClient) CheckUser(ctx context.Context, user domain.UserContext)
 		return domain.UserContext{}, fmt.Errorf("user is inactive")
 	}
 	return domain.UserContext{
-		UserID:     res.UserID,
-		TenantID:   res.TenantID,
+		UserID:     res.UserId,
+		TenantID:   res.TenantId,
 		TenantSlug: res.TenantSlug,
 		Role:       res.Role,
 	}, nil
 }
 
+// UserStats asks auth for user aggregates used by the superadmin dashboard.
+// Task-tracker owns task data; auth owns user data. gRPC lets each service keep
+// its own database boundary.
 func (c *AuthGRPCClient) UserStats(ctx context.Context) (application.UserStatsResponse, error) {
-	var res userStatsResponse
-	if err := c.conn.Invoke(ctx, "/"+authServiceName+"/UserStats", userStatsRequest{}, &res); err != nil {
+	var res authrpc.UserStatsResponse
+	if err := c.conn.Invoke(ctx, "/"+authrpc.ServiceName+"/UserStats", &authrpc.UserStatsRequest{}, &res); err != nil {
 		return application.UserStatsResponse{}, err
 	}
 
@@ -74,7 +84,7 @@ func (c *AuthGRPCClient) UserStats(ctx context.Context) (application.UserStatsRe
 	}
 	for _, item := range res.ByTenant {
 		result.ByTenant = append(result.ByTenant, application.TenantUserCountResponse{
-			TenantID:   item.TenantID,
+			TenantID:   item.TenantId,
 			TenantName: item.TenantName,
 			TenantSlug: item.TenantSlug,
 			Count:      item.Count,
@@ -82,39 +92,4 @@ func (c *AuthGRPCClient) UserStats(ctx context.Context) (application.UserStatsRe
 	}
 
 	return result, nil
-}
-
-type checkUserRequest struct {
-	UserID   string `json:"user_id"`
-	TenantID string `json:"tenant_id"`
-}
-
-type checkUserResponse struct {
-	UserID     string `json:"user_id"`
-	TenantID   string `json:"tenant_id"`
-	TenantSlug string `json:"tenant_slug"`
-	Role       string `json:"role"`
-	IsActive   bool   `json:"is_active"`
-}
-
-type userStatsRequest struct{}
-
-type userStatsResponse struct {
-	Total    int64             `json:"total"`
-	Active   int64             `json:"active"`
-	Inactive int64             `json:"inactive"`
-	ByRole   []roleUserCount   `json:"by_role"`
-	ByTenant []tenantUserCount `json:"by_tenant"`
-}
-
-type roleUserCount struct {
-	Role  string `json:"role"`
-	Count int64  `json:"count"`
-}
-
-type tenantUserCount struct {
-	TenantID   string `json:"tenant_id"`
-	TenantName string `json:"tenant_name"`
-	TenantSlug string `json:"tenant_slug"`
-	Count      int64  `json:"count"`
 }

@@ -63,6 +63,7 @@ Auth service:     http://localhost:8000/auth
 Task tracker:     http://localhost:8000/tasks
 Expense tracker:  http://localhost:8000/expenses
 Kong admin API:   http://localhost:8001
+Zipkin tracing:   http://localhost:9411
 ```
 
 Stop the gateway:
@@ -101,6 +102,7 @@ Auth service:     http://localhost:9080/auth
 Task tracker:     http://localhost:9080/tasks
 Task GraphQL:     http://localhost:9080/tasks/graphql
 Expense tracker:  http://localhost:9080/expenses
+Zipkin tracing:   http://localhost:9411
 ```
 
 APISIX with etcd and Dashboard:
@@ -115,6 +117,7 @@ APISIX GUI URLs:
 APISIX GUI proxy:   http://localhost:9088
 APISIX Dashboard:   http://localhost:9181
 APISIX Admin API:   http://localhost:9180
+Zipkin tracing:     http://localhost:9411
 ```
 
 Dashboard login:
@@ -195,7 +198,37 @@ Auth service:     http://localhost:8000/auth
 Task tracker:     http://localhost:8000/tasks
 Expense tracker:  http://localhost:8000/expenses
 Kong admin API:   http://localhost:8001
+Zipkin tracing:   http://localhost:9411
 ```
+
+## Gateway Auth Contract
+
+Auth handles login/register and issues JWTs. The gateway validates access tokens
+for protected service routes. Downstream services trust only these gateway-set
+headers:
+
+```text
+X-User-ID
+X-Tenant-ID
+X-Tenant-Slug
+X-User-Role
+```
+
+Task-tracker does not re-validate browser JWTs. It keeps business checks, such
+as `superadmin` dashboard access. Use gRPC only for internal service-to-service
+data, for example task-tracker asking auth for user stats.
+
+## Gateway Observability
+
+Kong and APISIX both send gateway traces to Zipkin in local dev/prod-style
+compose:
+
+```text
+http://localhost:9411
+```
+
+Run one gateway stack at a time if you use the default Zipkin port. If you need
+Kong and APISIX running together, change one compose file's host port mapping.
 
 Show containers:
 

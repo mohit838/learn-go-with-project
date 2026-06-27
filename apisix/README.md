@@ -16,6 +16,7 @@ Auth service:     http://localhost:9080/auth
 Task tracker:     http://localhost:9080/tasks
 Expense tracker:  http://localhost:9080/expenses
 Task GraphQL:     http://localhost:9080/tasks/graphql
+Zipkin tracing:   http://localhost:9411
 ```
 
 The config mirrors the Kong dev gateway and forwards to locally running Go services through `host.docker.internal`.
@@ -24,6 +25,29 @@ This mode does not need etcd or a curl bootstrap container. If we want to learn 
 
 Auth tokens use `iss=auth-service`, so task routes configure APISIX `jwt-auth`
 with `key_claim_name: iss`.
+
+## Gateway Responsibility
+
+APISIX is responsible for edge concerns:
+
+- CORS
+- rate limiting
+- JWT validation
+- trusted identity headers
+- Zipkin tracing
+
+Auth issues tokens. APISIX validates those tokens for protected routes and then
+forwards:
+
+```text
+X-User-ID
+X-Tenant-ID
+X-Tenant-Slug
+X-User-Role
+```
+
+Task-tracker trusts those headers because only the gateway should be exposed to
+frontend traffic.
 
 For the frontend, switch the API base URL from:
 
@@ -53,6 +77,7 @@ Local APISIX GUI URLs:
 APISIX GUI proxy:   http://localhost:9088
 APISIX Dashboard:   http://localhost:9181
 APISIX Admin API:   http://localhost:9180
+Zipkin tracing:     http://localhost:9411
 ```
 
 Dashboard login for local development:
@@ -81,3 +106,15 @@ It talks directly to the local APISIX Admin API at
 `http://localhost:9180/apisix/admin` and can enable route-level presets for
 CORS, JWT auth, and local rate limiting. This helper is for local development
 only because it uses the Admin API key in the browser.
+
+## Zipkin
+
+Both standalone and Dashboard modes start Zipkin:
+
+```text
+http://localhost:9411
+```
+
+APISIX sends gateway spans through the `zipkin` plugin. If you run multiple
+gateway stacks at the same time, only one can bind host port `9411` unless you
+change the compose port mapping.

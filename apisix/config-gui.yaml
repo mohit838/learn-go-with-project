@@ -25,6 +25,7 @@ plugins:
   - limit-count
   - proxy-rewrite
   - serverless-pre-function
+  - zipkin
 stream_plugins: []
 
 nginx_config:

@@ -1,4 +1,10 @@
 services:
+  zipkin:
+    image: openzipkin/zipkin:3.5
+    ports:
+      - "9411:9411"
+    restart: unless-stopped
+
   etcd:
     image: gcr.io/etcd-development/etcd:v3.6.12
     command:
@@ -26,6 +32,8 @@ services:
     depends_on:
       etcd:
         condition: service_healthy
+      zipkin:
+        condition: service_started
     ports:
       - "9088:9080"
       - "9180:9180"

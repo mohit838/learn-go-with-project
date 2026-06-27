@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package auth.v1;
+
+option go_package = "github.com/mohit838/learn-go-with-project/proto/auth/v1;authv1";
+
+// AuthService is the internal service-to-service contract owned by auth.
+// Public clients do not call this API. Other backend services call it when
+// they need authoritative user information from auth.
+service AuthService {
+  // CheckUser verifies that a user exists, belongs to the tenant, and is active.
+  rpc CheckUser(CheckUserRequest) returns (CheckUserResponse);
+
+  // UserStats returns aggregate user counts for admin dashboards.
+  rpc UserStats(UserStatsRequest) returns (UserStatsResponse);
+}
+
+message CheckUserRequest {
+  string user_id = 1;
+  string tenant_id = 2;
+}
+
+message CheckUserResponse {
+  string user_id = 1;
+  string tenant_id = 2;
+  string tenant_slug = 3;
+  string role = 4;
+  bool is_active = 5;
+}
+
+message UserStatsRequest {}
+
+message UserStatsResponse {
+  int64 total = 1;
+  int64 active = 2;
+  int64 inactive = 3;
+  repeated RoleUserCount by_role = 4;
+  repeated TenantUserCount by_tenant = 5;
+}
+
+message RoleUserCount {
+  string role = 1;
+  int64 count = 2;
+}
+
+message TenantUserCount {
+  string tenant_id = 1;
+  string tenant_name = 2;
+  string tenant_slug = 3;
+  int64 count = 4;
+}

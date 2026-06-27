@@ -7,6 +7,14 @@ deployment:
   role_data_plane:
     config_provider: yaml
 
+plugins:
+  - cors
+  - jwt-auth
+  - limit-count
+  - proxy-rewrite
+  - serverless-pre-function
+  - zipkin
+
 nginx_config:
   error_log: /dev/stderr
   http:

@@ -35,6 +35,14 @@ services:
       - app-network
     restart: unless-stopped
 
+  zipkin:
+    image: openzipkin/zipkin:3.5
+    ports:
+      - "9411:9411"
+    networks:
+      - app-network
+    restart: unless-stopped
+
   kong:
     image: kong:3.9
     environment:
@@ -54,6 +62,7 @@ services:
       - auth
       - task-tracker
       - expense-tracker
+      - zipkin
     networks:
       - app-network
     restart: unless-stopped

@@ -5,11 +5,16 @@
 The service shape is:
 
 ```text
-Client -> Kong -> Auth validates user -> Kong forwards trusted identity -> Service
+Client -> Gateway -> Auth issues JWT -> Gateway validates JWT -> Service
 ```
 
-Task-tracker does not validate client Bearer tokens directly. Kong validates the
-JWT and forwards trusted identity headers to task-tracker.
+Auth authenticates the user during login/register and issues tokens. After that,
+APISIX or Kong validates the access token at the gateway and forwards trusted
+identity headers to downstream services.
+
+Task-tracker does not validate client Bearer tokens directly. It trusts the
+gateway identity headers and keeps only business authorization checks, such as
+`superadmin` dashboard access.
 
 ## Current Behavior
 
@@ -33,13 +38,33 @@ Task-tracker service:
 
 ## Important Security Rule
 
-Only Kong or another trusted internal gateway should set identity headers.
+Only APISIX, Kong, or another trusted internal gateway should set identity headers.
 Frontend clients must not be allowed to spoof `X-User-ID`, `X-Tenant-ID`, or
 `X-User-Role`.
 
-Kong validates the token and then forwards trusted identity claims to upstream
-services. Services should still keep business authorization checks, such as
+The gateway validates the token and then forwards trusted identity claims to
+upstream services. Services should still keep business authorization checks, such as
 `superadmin` access for dashboards.
+
+## Gateway Switch
+
+Both APISIX and Kong follow the same protected-route contract:
+
+```text
+Authorization: Bearer <access_token>
+Gateway validates JWT signature and exp
+Gateway forwards X-User-ID, X-Tenant-ID, X-Tenant-Slug, X-User-Role
+Task-tracker handles the request
+```
+
+Switching gateway should not require service code changes. Change only the
+frontend base URL and gateway config:
+
+```env
+VITE_API_URL=http://localhost:8000  # Kong
+VITE_API_URL=http://localhost:9080  # APISIX standalone
+VITE_API_URL=http://localhost:9088  # APISIX GUI mode
+```
 
 ## gRPC
 
@@ -50,13 +75,22 @@ auth.v1.AuthService/CheckUser
 auth.v1.AuthService/UserStats
 ```
 
-For this learning step, the project uses a small JSON gRPC codec instead of
-generated protobuf files. Later, replace it with:
+The source contract lives in:
 
 ```text
 proto/auth/v1/auth.proto
+```
+
+The current implementation uses protobuf wire encoding with small typed
+compatibility structs in each service's `internal/authrpc` package. This keeps
+the code simple while `protoc` is not installed in the local environment.
+
+Later, replace those compatibility structs with generated Go code:
+
+```text
 protoc generated Go code
 typed generated clients and servers
+shared versioned protobuf module/package
 ```
 
 ## GraphQL Dashboard
@@ -133,4 +167,23 @@ consumers:
       - key: auth-service
         algorithm: HS256
         secret: replace_with_a_long_random_secret
+```
+
+APISIX uses the same shared secret in its `jwt-auth` consumer config.
+
+## Observability
+
+Gateway tracing is handled at the gateway with Zipkin. Services do not need
+Zipkin code for this first step.
+
+Local Zipkin URL:
+
+```text
+http://localhost:9411
+```
+
+The gateway sends spans to:
+
+```text
+http://zipkin:9411/api/v2/spans
 ```

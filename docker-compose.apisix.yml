@@ -1,6 +1,14 @@
 services:
+  zipkin:
+    image: openzipkin/zipkin:3.5
+    ports:
+      - "9411:9411"
+    restart: unless-stopped
+
   apisix:
     image: apache/apisix:3.17.0-debian
+    depends_on:
+      - zipkin
     ports:
       - "9080:9080"
     volumes:

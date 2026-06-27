@@ -252,6 +252,10 @@ Current project shape:
 - The task dashboard is exposed through `/tasks/graphql` and still checks the
   `superadmin` business rule inside the service.
 - Auth gRPC remains for internal service-to-service calls.
+- Kong can be swapped with APISIX because both gateways use the same protected
+  route contract and identity headers.
+- Kong sends gateway traces to Zipkin at `http://zipkin:9411/api/v2/spans` in
+  Docker Compose.
 
 GraphQL routing rule:
 

@@ -121,6 +121,7 @@ apisix:
 	@printf "Task tracker:     http://localhost:9080/tasks\n"
 	@printf "Task GraphQL:     http://localhost:9080/tasks/graphql\n"
 	@printf "Expense tracker:  http://localhost:9080/expenses\n"
+	@printf "Zipkin tracing:   http://localhost:9411\n"
 
 apisix-dev:
 	$(APISIX_COMPOSE) up -d
@@ -139,6 +140,7 @@ apisix-gui:
 	@printf "APISIX GUI proxy:   http://localhost:9088\n"
 	@printf "APISIX Dashboard:   http://localhost:9181\n"
 	@printf "APISIX Admin API:   http://localhost:9180\n"
+	@printf "Zipkin tracing:     http://localhost:9411\n"
 	@printf "Auth service:       http://localhost:9088/auth\n"
 	@printf "Task tracker:       http://localhost:9088/tasks\n"
 	@printf "Task GraphQL:       http://localhost:9088/tasks/graphql\n"

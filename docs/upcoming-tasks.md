@@ -110,8 +110,8 @@ respond predictably when the provider is unavailable.
   - Kong validates JWTs for task routes and forwards trusted identity headers.
   - Task-tracker trusts gateway identity for HTTP requests.
   - Task-tracker uses Auth gRPC user stats in the superadmin dashboard.
-- Next hardening step: replace the temporary JSON gRPC codec with generated
-  protobuf contracts.
+- Next hardening step: replace the temporary hand-written protobuf-compatible
+  gRPC structs with generated protobuf contracts.
 - Add deadlines, richer error mapping, and a local integration test.
 
 **Done when:** one service-to-service request works through gRPC with a stable,

@@ -6,6 +6,14 @@ consumers:
         secret: replace_with_a_long_random_secret
         algorithm: HS256
 
+global_rules:
+  - id: gateway-observability-local
+    plugins:
+      zipkin:
+        endpoint: http://zipkin:9411/api/v2/spans
+        sample_ratio: 1
+        service_name: apisix-gateway-dev
+
 routes:
   - id: auth-route-local
     name: auth-route-local

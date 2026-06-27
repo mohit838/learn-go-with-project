@@ -25,6 +25,11 @@ plugins:
       credentials: true
       max_age: 300
       preflight_continue: false
+  - name: zipkin
+    config:
+      http_endpoint: http://zipkin:9411/api/v2/spans
+      sample_ratio: 1
+      default_service_name: kong-gateway-dev
 
 consumers:
   - username: auth-service

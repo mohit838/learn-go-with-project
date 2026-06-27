@@ -11,7 +11,6 @@ import (
 	authtransport "github.com/mohit838/learn-go-with-project/internal/auth/transport"
 	"github.com/mohit838/learn-go-with-project/internal/config"
 	"github.com/mohit838/learn-go-with-project/internal/database"
-	_ "github.com/mohit838/learn-go-with-project/internal/grpcx"
 	"github.com/mohit838/learn-go-with-project/internal/router"
 	"google.golang.org/grpc"
 )

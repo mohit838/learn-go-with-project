@@ -190,6 +190,7 @@ func requireAffected(result sql.Result) error {
 
 func (r *TaskRepository) DashboardStats(ctx context.Context) (domain.TaskDashboardStats, error) {
 	var stats domain.TaskDashboardStats
+	// Overall totals for task cards.
 	if err := r.db.QueryRowContext(ctx, `
 	SELECT
 		COUNT(*),
@@ -199,6 +200,7 @@ func (r *TaskRepository) DashboardStats(ctx context.Context) (domain.TaskDashboa
 		return domain.TaskDashboardStats{}, err
 	}
 
+	// Breakdown for charts or small summary lists.
 	statusRows, err := r.db.QueryContext(ctx, `
 	SELECT status, COUNT(*)
 	FROM tasks
@@ -219,6 +221,7 @@ func (r *TaskRepository) DashboardStats(ctx context.Context) (domain.TaskDashboa
 		return domain.TaskDashboardStats{}, err
 	}
 
+	// Priority breakdown stays separate so frontend can render it independently.
 	priorityRows, err := r.db.QueryContext(ctx, `
 	SELECT priority, COUNT(*)
 	FROM tasks
@@ -239,6 +242,7 @@ func (r *TaskRepository) DashboardStats(ctx context.Context) (domain.TaskDashboa
 		return domain.TaskDashboardStats{}, err
 	}
 
+	// Per-user task counts. Auth can later enrich these IDs with names if needed.
 	userRows, err := r.db.QueryContext(ctx, `
 	SELECT
 		user_id::text,

@@ -6,6 +6,7 @@ require github.com/joho/godotenv v1.5.1
 
 require (
 	github.com/go-chi/chi/v5 v5.3.0
+	github.com/golang/protobuf v1.5.4
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/mohit838/mtz-go-migrator/migrator v0.1.1-0.20260627084635-72922ea88842
 	github.com/redis/go-redis/v9 v9.20.1
