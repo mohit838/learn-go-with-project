@@ -166,7 +166,7 @@ function LoginPage() {
     <AuthFrame title="Sign in" subtitle="Use your Auth service account">
       <Form
         layout="vertical"
-        initialValues={{ tenant_slug: 'default' }}
+        initialValues={{ tenant_slug: 'demo' }}
         onFinish={(values) => mutation.mutate(values)}
       >
         <Form.Item name="tenant_slug" label="Tenant slug" rules={[{ required: true }]}>
