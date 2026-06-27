@@ -27,6 +27,7 @@ import {
   Select,
   Space,
   Statistic,
+  Steps,
   Table,
   Tag,
   Typography,
@@ -37,18 +38,24 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import type { AxiosError } from 'axios'
 import {
+  createNotification,
   createTask,
   deleteTask,
   getDashboard,
+  getNotification,
+  getNotificationStats,
   listTasks,
   listUsers,
   login,
   markTaskInactive,
   register,
   updateTask,
+  API_URL,
+  GATEWAY_NAME,
+  ZIPKIN_URL,
 } from './api'
 import { useAuthStore } from './store'
-import type { AuthUser, Task, TaskPayload } from './types'
+import type { AuthUser, Notification, NotificationPayload, Task, TaskPayload } from './types'
 
 const { Header, Sider, Content } = Layout
 const { Title, Text } = Typography
@@ -72,6 +79,7 @@ function App() {
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/tasks" element={<TasksPage />} />
+              <Route path="/notifications" element={<NotificationsPage />} />
               <Route path="/users" element={<UsersPage />} />
             </Route>
           </Routes>
@@ -111,6 +119,9 @@ function ProtectedLayout() {
           <NavLink className={selectedKey === 'tasks' ? 'active' : ''} to="/tasks">
             Tasks
           </NavLink>
+          <NavLink className={selectedKey === 'notifications' ? 'active' : ''} to="/notifications">
+            Notifications
+          </NavLink>
           <NavLink className={selectedKey === 'users' ? 'active' : ''} to="/users">
             Users
           </NavLink>
@@ -118,9 +129,12 @@ function ProtectedLayout() {
       </Sider>
       <Layout>
         <Header className="app-header">
-          <div>
-            <Text type="secondary">Tenant</Text>
-            <div className="tenant-name">{user?.tenant_slug ?? 'unknown'}</div>
+          <div className="header-meta">
+            <div>
+              <Text type="secondary">Tenant</Text>
+              <div className="tenant-name">{user?.tenant_slug ?? 'unknown'}</div>
+            </div>
+            <GatewayBadge />
           </div>
           <Space>
             <Tag color={user?.role === 'superadmin' ? 'purple' : 'blue'}>
@@ -140,6 +154,7 @@ function ProtectedLayout() {
           <Routes>
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/tasks" element={<TasksPage />} />
+            <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/users" element={<UsersPage />} />
           </Routes>
         </Content>
@@ -631,6 +646,115 @@ function UsersPage() {
   )
 }
 
+function NotificationsPage() {
+  const { message } = AntApp.useApp()
+  const queryClient = useQueryClient()
+  const [lastNotification, setLastNotification] = useState<Notification | null>(null)
+
+  const statsQuery = useQuery({
+    queryKey: ['notification-stats'],
+    queryFn: getNotificationStats,
+    refetchInterval: 1500,
+  })
+
+  const statusQuery = useQuery({
+    queryKey: ['notification', lastNotification?.id],
+    queryFn: () => getNotification(lastNotification!.id),
+    enabled: Boolean(lastNotification?.id),
+    refetchInterval: (query) =>
+      query.state.data?.status === 'delivered' || query.state.data?.status === 'failed'
+        ? false
+        : 1000,
+  })
+
+  const createMutation = useMutation({
+    mutationFn: createNotification,
+    onSuccess: (data) => {
+      setLastNotification(data)
+      message.success('Notification queued')
+      queryClient.invalidateQueries({ queryKey: ['notification-stats'] })
+    },
+    onError: (error) => message.error(errorMessage(error)),
+  })
+
+  const current = statusQuery.data ?? lastNotification
+  const stats = statsQuery.data
+
+  return (
+    <PageTitle
+      title="Notifications"
+      description="Small worker-pool service for learning goroutines, channels, and background jobs."
+    >
+      <Row gutter={[16, 16]}>
+        <Col xs={24} lg={10}>
+          <Card title="Queue notification">
+            <Form
+              layout="vertical"
+              initialValues={{ recipient: 'dev@example.com', message: 'Hello from a channel job' }}
+              onFinish={(values: NotificationPayload) => createMutation.mutate(values)}
+            >
+              <Form.Item name="recipient" label="Recipient" rules={[{ required: true }]}>
+                <Input />
+              </Form.Item>
+              <Form.Item name="message" label="Message" rules={[{ required: true }]}>
+                <Input.TextArea rows={4} />
+              </Form.Item>
+              <Button type="primary" htmlType="submit" loading={createMutation.isPending}>
+                Send to worker pool
+              </Button>
+            </Form>
+          </Card>
+        </Col>
+        <Col xs={24} lg={14}>
+          <Card title="Worker stats" loading={statsQuery.isLoading}>
+            <Row gutter={[12, 12]}>
+              <Col xs={12} md={8}>
+                <Statistic title="Workers" value={stats?.workers ?? 0} />
+              </Col>
+              <Col xs={12} md={8}>
+                <Statistic title="Queue size" value={stats?.queue_size ?? 0} />
+              </Col>
+              <Col xs={12} md={8}>
+                <Statistic title="Waiting" value={stats?.jobs_waiting ?? 0} />
+              </Col>
+              <Col xs={12} md={8}>
+                <Statistic title="Queued" value={stats?.queued ?? 0} />
+              </Col>
+              <Col xs={12} md={8}>
+                <Statistic title="Sending" value={stats?.sending ?? 0} />
+              </Col>
+              <Col xs={12} md={8}>
+                <Statistic title="Delivered" value={stats?.delivered ?? 0} />
+              </Col>
+            </Row>
+          </Card>
+        </Col>
+      </Row>
+
+      <Card title="Last notification">
+        {current ? (
+          <Space direction="vertical" size="middle" className="full-width">
+            <Steps
+              current={notificationStep(current.status)}
+              status={current.status === 'failed' ? 'error' : 'process'}
+              items={[{ title: 'Queued' }, { title: 'Sending' }, { title: 'Delivered' }]}
+            />
+            <Space wrap>
+              <Tag>{current.status}</Tag>
+              {current.worker_id ? <Tag color="blue">worker {current.worker_id}</Tag> : null}
+              <Text type="secondary">{current.id}</Text>
+            </Space>
+            <Text>{current.message}</Text>
+            {current.error ? <Alert type="error" showIcon title={current.error} /> : null}
+          </Space>
+        ) : (
+          <Text type="secondary">No notification submitted yet.</Text>
+        )}
+      </Card>
+    </PageTitle>
+  )
+}
+
 function AuthFrame({
   title,
   subtitle,
@@ -645,6 +769,9 @@ function AuthFrame({
       <Card className="auth-card">
         <Title level={2}>{title}</Title>
         <Text type="secondary">{subtitle}</Text>
+        <div className="mt-4">
+          <GatewayBadge />
+        </div>
         <div className="mt-6">{children}</div>
       </Card>
     </div>
@@ -673,9 +800,25 @@ function PageTitle({
   )
 }
 
+function GatewayBadge() {
+  return (
+    <Space size={6} wrap className="gateway-badge">
+      <Tag color={GATEWAY_NAME.includes('APISIX') ? 'geekblue' : 'cyan'}>{GATEWAY_NAME}</Tag>
+      <Text type="secondary">{API_URL}</Text>
+      <Text type="secondary">Zipkin {ZIPKIN_URL}</Text>
+    </Space>
+  )
+}
+
 function priorityTag(priority: string) {
   const color = priority === 'high' ? 'red' : priority === 'low' ? 'green' : 'blue'
   return <Tag color={color}>{priority}</Tag>
+}
+
+function notificationStep(status: string) {
+  if (status === 'queued') return 0
+  if (status === 'sending') return 1
+  return 2
 }
 
 function formatDate(value: string) {

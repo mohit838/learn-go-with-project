@@ -100,6 +100,7 @@ gateway:
 	@printf "Auth service:     http://localhost:8000/auth\n"
 	@printf "Task tracker:     http://localhost:8000/tasks\n"
 	@printf "Expense tracker:  http://localhost:8000/expenses\n"
+	@printf "Notifications:    http://localhost:8000/notifications\n"
 	@printf "Kong admin API:   http://localhost:8001\n"
 
 gateway-dev:
@@ -121,6 +122,7 @@ apisix:
 	@printf "Task tracker:     http://localhost:9080/tasks\n"
 	@printf "Task GraphQL:     http://localhost:9080/tasks/graphql\n"
 	@printf "Expense tracker:  http://localhost:9080/expenses\n"
+	@printf "Notifications:    http://localhost:9080/notifications\n"
 	@printf "Zipkin tracing:   http://localhost:9411\n"
 
 apisix-dev:
@@ -145,6 +147,7 @@ apisix-gui:
 	@printf "Task tracker:       http://localhost:9088/tasks\n"
 	@printf "Task GraphQL:       http://localhost:9088/tasks/graphql\n"
 	@printf "Expense tracker:    http://localhost:9088/expenses\n"
+	@printf "Notifications:      http://localhost:9088/notifications\n"
 
 apisix-gui-up:
 	$(APISIX_GUI_COMPOSE) up -d

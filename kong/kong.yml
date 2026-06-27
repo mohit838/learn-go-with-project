@@ -177,3 +177,59 @@ services:
               policy: local
               limit_by: ip
               hide_client_headers: false
+
+  - name: notification-service
+    url: http://notification-service:8487
+    routes:
+      - name: notification-route
+        paths:
+          - /notifications
+        strip_path: false
+        plugins:
+          - name: jwt
+            config:
+              key_claim_name: iss
+              run_on_preflight: false
+              claims_to_verify:
+                - exp
+          - name: post-function
+            config:
+              access:
+                - |
+                  if kong.request.get_method() == "OPTIONS" then
+                    return
+                  end
+                  local token = kong.request.get_header("authorization")
+                  if not token then
+                    return kong.response.exit(401, { message = "missing authorization token" })
+                  end
+                  token = token:gsub("^[Bb]earer%s+", "")
+                  local payload = token:match("^[^.]+%.([^.]+)%.")
+                  if not payload then
+                    return kong.response.exit(401, { message = "invalid authorization token" })
+                  end
+                  payload = payload:gsub("-", "+"):gsub("_", "/")
+                  local padding = #payload % 4
+                  if padding > 0 then
+                    payload = payload .. string.rep("=", 4 - padding)
+                  end
+                  local decoded = ngx.decode_base64(payload)
+                  if not decoded then
+                    return kong.response.exit(401, { message = "invalid authorization token payload" })
+                  end
+                  local claim = function(name)
+                    return decoded:match('"' .. name .. '"%s*:%s*"([^"]*)"') or ""
+                  end
+                  if claim("token_type") ~= "access" then
+                    return kong.response.exit(401, { message = "access token required" })
+                  end
+                  kong.service.request.set_header("X-User-ID", claim("sub"))
+                  kong.service.request.set_header("X-Tenant-ID", claim("tenant_id"))
+                  kong.service.request.set_header("X-Tenant-Slug", claim("tenant"))
+                  kong.service.request.set_header("X-User-Role", claim("role"))
+          - name: rate-limiting
+            config:
+              minute: 300
+              policy: local
+              limit_by: ip
+              hide_client_headers: false

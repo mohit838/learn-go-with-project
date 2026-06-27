@@ -108,6 +108,21 @@ textarea {
   line-height: 1.2;
 }
 
+.header-meta {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  min-width: 0;
+}
+
+.gateway-badge {
+  max-width: 100%;
+}
+
+.gateway-badge .ant-typography {
+  font-size: 12px;
+}
+
 .app-content {
   padding: 24px;
   max-width: 1440px;
@@ -176,6 +191,12 @@ textarea {
 @media (max-width: 768px) {
   .app-header {
     padding: 0 16px;
+  }
+
+  .header-meta {
+    gap: 8px;
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .app-content {

@@ -1,0 +1,38 @@
+{
+  "name": "notification-route-local",
+  "uris": ["/notifications", "/notifications/*"],
+  "plugins": {
+    "cors": {
+      "allow_origins": "http://localhost:3000,http://localhost:5173,http://localhost:5174",
+      "allow_methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+      "allow_headers": "Accept,Authorization,Content-Type,X-Request-ID",
+      "expose_headers": "X-Request-ID",
+      "allow_credential": true,
+      "max_age": 300
+    },
+    "jwt-auth": {
+      "key_claim_name": "iss",
+      "claims_to_verify": ["exp"]
+    },
+    "serverless-pre-function": {
+      "phase": "access",
+      "functions": [
+        "return function(conf, ctx)\n  local core = require(\"apisix.core\")\n  local token = core.request.header(ctx, \"Authorization\")\n  if not token then\n    return 401, { message = \"missing authorization token\" }\n  end\n  token = token:gsub(\"^[Bb]earer%s+\", \"\")\n  local payload = token:match(\"^[^.]+%.([^.]+)%.\")\n  if not payload then\n    return 401, { message = \"invalid authorization token\" }\n  end\n  payload = payload:gsub(\"-\", \"+\"):gsub(\"_\", \"/\")\n  local padding = #payload % 4\n  if padding > 0 then\n    payload = payload .. string.rep(\"=\", 4 - padding)\n  end\n  local decoded = ngx.decode_base64(payload)\n  if not decoded then\n    return 401, { message = \"invalid authorization token payload\" }\n  end\n  local claim = function(name)\n    return decoded:match('\"' .. name .. '\"%s*:%s*\"([^\"]*)\"') or \"\"\n  end\n  if claim(\"token_type\") ~= \"access\" then\n    return 401, { message = \"access token required\" }\n  end\n  core.request.set_header(ctx, \"X-User-ID\", claim(\"sub\"))\n  core.request.set_header(ctx, \"X-Tenant-ID\", claim(\"tenant_id\"))\n  core.request.set_header(ctx, \"X-Tenant-Slug\", claim(\"tenant\"))\n  core.request.set_header(ctx, \"X-User-Role\", claim(\"role\"))\nend"
+      ]
+    },
+    "limit-count": {
+      "policy": "local",
+      "count": 300,
+      "time_window": 60,
+      "rejected_code": 429,
+      "key_type": "var",
+      "key": "remote_addr"
+    }
+  },
+  "upstream": {
+    "type": "roundrobin",
+    "nodes": {
+      "host.docker.internal:8487": 1
+    }
+  }
+}

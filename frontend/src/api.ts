@@ -5,12 +5,17 @@ import type {
   AuthResponse,
   AuthUser,
   DashboardData,
+  Notification,
+  NotificationPayload,
+  NotificationStats,
   PaginatedResponse,
   Task,
   TaskPayload,
 } from './types'
 
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:9080'
+export const API_URL = normalizeBaseURL(import.meta.env.VITE_API_URL ?? 'http://localhost:8000')
+export const ZIPKIN_URL = normalizeBaseURL(import.meta.env.VITE_ZIPKIN_URL ?? 'http://localhost:9411')
+export const GATEWAY_NAME = gatewayName(API_URL)
 
 export const api = axios.create({
   baseURL: API_URL,
@@ -141,6 +146,32 @@ export async function getDashboard() {
     throw new Error('Dashboard response was empty')
   }
   return data.data.dashboard
+}
+
+export async function createNotification(payload: NotificationPayload) {
+  const { data } = await api.post<ApiEnvelope<Notification>>('/notifications', payload)
+  return unwrap(data)
+}
+
+export async function getNotification(id: string) {
+  const { data } = await api.get<ApiEnvelope<Notification>>(`/notifications/${id}`)
+  return unwrap(data)
+}
+
+export async function getNotificationStats() {
+  const { data } = await api.get<ApiEnvelope<NotificationStats>>('/notifications/stats')
+  return unwrap(data)
+}
+
+function normalizeBaseURL(value: string) {
+  return value.replace(/\/+$/, '')
+}
+
+function gatewayName(url: string) {
+  if (url.includes(':9088')) return 'APISIX GUI'
+  if (url.includes(':9080')) return 'APISIX'
+  if (url.includes(':8000')) return 'Kong'
+  return 'Gateway'
 }
 
 function taskBody(payload: TaskPayload) {

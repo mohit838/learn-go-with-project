@@ -258,6 +258,7 @@
               <option value="jwt-auth">jwt-auth</option>
               <option value="proxy-rewrite">proxy-rewrite</option>
               <option value="serverless-pre-function">serverless-pre-function</option>
+              <option value="zipkin">zipkin</option>
             </select>
           </div>
 
@@ -308,6 +309,11 @@
         "jwt-auth": {
           key_claim_name: "iss",
           claims_to_verify: ["exp"],
+        },
+        zipkin: {
+          endpoint: "http://zipkin:9411/api/v2/spans",
+          sample_ratio: 1,
+          service_name: "apisix-gateway-dev",
         },
       }
 

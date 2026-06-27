@@ -1,10 +1,11 @@
 # Expense Task Tracker Microservices POC
 
-Expense Task Tracker is a Go microservices proof of concept with three HTTP services:
+Expense Task Tracker is a Go microservices proof of concept with four HTTP services:
 
 - `auth`
 - `task-tracker`
 - `expense-tracker`
+- `notification-service`
 
 The local Docker stack runs the services behind Kong Gateway by default. APISIX is also available as a separate optional gateway for learning. Each service uses its own local `.env` file from its service directory.
 
@@ -30,6 +31,7 @@ Then start the services locally:
 cd services/auth && go run ./cmd/api
 cd services/task-tracker && go run ./cmd/api
 cd services/expense-tracker && go run ./cmd/api
+cd services/notification-service && go run ./cmd/api
 ```
 
 Kong will route to your locally running services through `host.docker.internal`.
@@ -60,6 +62,7 @@ Open the services through Kong:
 - Auth: http://localhost:8000/auth
 - Task tracker: http://localhost:8000/tasks
 - Expense tracker: http://localhost:8000/expenses
+- Notifications: http://localhost:8000/notifications
 - Kong admin API: http://localhost:8001
 
 Open the services through APISIX:
@@ -69,12 +72,14 @@ Open the services through APISIX:
 - Task tracker: http://localhost:9080/tasks
 - Task GraphQL: http://localhost:9080/tasks/graphql
 - Expense tracker: http://localhost:9080/expenses
+- Notifications: http://localhost:9080/notifications
 
 Open APISIX Dashboard mode:
 
 - APISIX GUI proxy: http://localhost:9088
 - APISIX Dashboard: http://localhost:9181
 - APISIX Admin API: http://localhost:9180
+- Notifications: http://localhost:9088/notifications
 
 Stop the stack:
 
@@ -95,6 +100,8 @@ The services are also exposed directly for debugging:
 - Auth: http://localhost:8484
 - Task tracker: http://localhost:8485
 - Expense tracker: http://localhost:8486
+- Notification service: http://localhost:8487
+- Notification gRPC: localhost:8587
 
 Inside Docker, the services use the `APP_PORT` values from their own `.env` files.
 
@@ -132,6 +139,7 @@ make migrate-rollback service=auth
 - [Kong gateway notes](docs/kong.md)
 - [APISIX gateway notes](docs/apisix.md)
 - [OpenAPI documentation](docs/openapi.md)
+- [Go concurrency with notification service](docs/go-concurrency-notifications.md)
 
 ## Project Layout
 

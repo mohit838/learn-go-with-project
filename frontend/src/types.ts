@@ -92,3 +92,33 @@ export type DashboardData = {
     }>
   }
 }
+
+export type NotificationStatus = 'queued' | 'sending' | 'delivered' | 'failed'
+
+export type Notification = {
+  id: string
+  user_id: string
+  tenant_id: string
+  recipient: string
+  message: string
+  status: NotificationStatus
+  worker_id?: number
+  error?: string
+  submitted_at: string
+  updated_at: string
+}
+
+export type NotificationPayload = {
+  recipient: string
+  message: string
+}
+
+export type NotificationStats = {
+  workers: number
+  queue_size: number
+  queued: number
+  sending: number
+  delivered: number
+  failed: number
+  jobs_waiting: number
+}

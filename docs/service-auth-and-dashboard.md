@@ -36,6 +36,12 @@ Task-tracker service:
 - Uses Auth gRPC for internal service-to-service calls, such as dashboard user
   stats.
 
+Notification service:
+
+- Requires the same trusted gateway identity headers for HTTP routes.
+- Demonstrates goroutines and channels with an in-memory worker pool.
+- Exposes internal gRPC methods for service-to-service notification calls.
+
 ## Important Security Rule
 
 Only APISIX, Kong, or another trusted internal gateway should set identity headers.
@@ -79,6 +85,20 @@ The source contract lives in:
 
 ```text
 proto/auth/v1/auth.proto
+```
+
+Notification gRPC methods:
+
+```text
+notification.v1.NotificationService/SubmitNotification
+notification.v1.NotificationService/GetNotification
+notification.v1.NotificationService/Stats
+```
+
+The source contract lives in:
+
+```text
+proto/notification/v1/notification.proto
 ```
 
 The current implementation uses protobuf wire encoding with small typed

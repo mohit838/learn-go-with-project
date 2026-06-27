@@ -133,6 +133,20 @@ That helper talks directly to the local APISIX Admin API and can enable common
 route plugins such as CORS, JWT auth, and `limit-count`. Keep it local only; do
 not expose the Admin API key to a real frontend or public network.
 
+Dashboard mode intentionally does not pin a tiny plugin allow-list in
+`apisix/config-gui.yaml`. Letting APISIX expose its normal plugin catalog avoids
+Dashboard pages receiving incomplete plugin metadata.
+
+If Dashboard shows this validation error:
+
+```text
+redis_host is required
+```
+
+check the `limit-count` plugin config. For local development use `policy:
+local`. Only use `policy: redis` when `redis_host` and the related Redis fields
+are configured.
+
 The bootstrap container seeds the same local routes we use elsewhere:
 
 ```text
@@ -140,6 +154,7 @@ The bootstrap container seeds the same local routes we use elsewhere:
 /tasks
 /tasks/graphql
 /expenses
+/notifications
 ```
 
 For frontend testing with dashboard mode:

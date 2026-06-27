@@ -47,6 +47,7 @@ Start the Go services in separate terminals:
 cd services/auth && go run ./cmd/api
 cd services/task-tracker && go run ./cmd/api
 cd services/expense-tracker && go run ./cmd/api
+cd services/notification-service && go run ./cmd/api
 ```
 
 Start the default development gateway with Kong:
@@ -62,6 +63,7 @@ Kong proxy:       http://localhost:8000
 Auth service:     http://localhost:8000/auth
 Task tracker:     http://localhost:8000/tasks
 Expense tracker:  http://localhost:8000/expenses
+Notifications:    http://localhost:8000/notifications
 Kong admin API:   http://localhost:8001
 Zipkin tracing:   http://localhost:9411
 ```
@@ -102,6 +104,7 @@ Auth service:     http://localhost:9080/auth
 Task tracker:     http://localhost:9080/tasks
 Task GraphQL:     http://localhost:9080/tasks/graphql
 Expense tracker:  http://localhost:9080/expenses
+Notifications:    http://localhost:9080/notifications
 Zipkin tracing:   http://localhost:9411
 ```
 
@@ -117,6 +120,7 @@ APISIX GUI URLs:
 APISIX GUI proxy:   http://localhost:9088
 APISIX Dashboard:   http://localhost:9181
 APISIX Admin API:   http://localhost:9180
+Notifications:      http://localhost:9088/notifications
 Zipkin tracing:     http://localhost:9411
 ```
 
@@ -136,6 +140,14 @@ apisix/plugin-manager.html
 
 That helper is development-only because it uses the local Admin API key in the
 browser.
+
+If you change `apisix/config-gui.yaml`, restart GUI mode so APISIX reloads the
+gateway config:
+
+```sh
+make apisix-gui-down
+make apisix-gui-up
+```
 
 ## Frontend
 

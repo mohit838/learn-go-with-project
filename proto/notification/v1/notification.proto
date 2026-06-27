@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package notification.v1;
+
+option go_package = "github.com/mohit838/learn-go-with-project/proto/notification/v1;notificationv1";
+
+// NotificationService is an internal service-to-service API.
+//
+// Browser/frontend traffic should use HTTP through the gateway. Backend
+// services can use this gRPC API when they need to enqueue or inspect
+// notifications without going through public gateway routes.
+service NotificationService {
+  rpc SubmitNotification(SubmitNotificationRequest) returns (NotificationResponse);
+  rpc GetNotification(GetNotificationRequest) returns (NotificationResponse);
+  rpc Stats(StatsRequest) returns (StatsResponse);
+}
+
+message SubmitNotificationRequest {
+  string user_id = 1;
+  string tenant_id = 2;
+  string tenant_slug = 3;
+  string role = 4;
+  string recipient = 5;
+  string message = 6;
+}
+
+message GetNotificationRequest {
+  string id = 1;
+}
+
+message StatsRequest {}
+
+message NotificationResponse {
+  string id = 1;
+  string user_id = 2;
+  string tenant_id = 3;
+  string recipient = 4;
+  string message = 5;
+  string status = 6;
+  int32 worker_id = 7;
+  string error = 8;
+  string submitted_at = 9;
+  string updated_at = 10;
+}
+
+message StatsResponse {
+  int32 workers = 1;
+  int32 queue_size = 2;
+  int32 queued = 3;
+  int32 sending = 4;
+  int32 delivered = 5;
+  int32 failed = 6;
+  int32 jobs_waiting = 7;
+}
