@@ -77,7 +77,11 @@ func main() {
 		log.Fatalf("error connecting to MinIO: %v", err)
 	}
 	if err := database.EnsureMinIOBucket(context.Background(), minioClient, cfg.MinIOBucket, cfg.MinIORegion); err != nil {
-		log.Fatalf("error ensuring MinIO bucket: %v", err)
+		if database.IsMinIOAccessDenied(err) {
+			log.Printf(">>-->> MinIO bucket ensure skipped; current user has limited bucket permissions | Bucket: %s", cfg.MinIOBucket)
+		} else {
+			log.Fatalf("error ensuring MinIO bucket: %v", err)
+		}
 	}
 	log.Printf(">>-->> MinIO connected | Bucket: %s", cfg.MinIOBucket)
 

@@ -49,3 +49,11 @@ func EnsureMinIOBucket(ctx context.Context, client *minio.Client, bucketName, re
 		Region: region,
 	})
 }
+
+func IsMinIOAccessDenied(err error) bool {
+	if err == nil {
+		return false
+	}
+	response := minio.ToErrorResponse(err)
+	return response.Code == "AccessDenied" || strings.Contains(strings.ToLower(err.Error()), "access denied")
+}

@@ -43,3 +43,4 @@ docker-compose.override.yml
 
 # Dependency folders from auxiliary tooling
 node_modules/
+secrets/
