@@ -63,7 +63,7 @@ services:
               run_on_preflight: false
               claims_to_verify:
                 - exp
-          - name: pre-function
+          - name: post-function
             config:
               access:
                 - |
@@ -88,15 +88,16 @@ services:
                   if not decoded then
                     return kong.response.exit(401, { message = "invalid authorization token payload" })
                   end
-                  local cjson = require "cjson.safe"
-                  local claims = cjson.decode(decoded)
-                  if not claims or claims.token_type ~= "access" then
+                  local claim = function(name)
+                    return decoded:match('"' .. name .. '"%s*:%s*"([^"]*)"') or ""
+                  end
+                  if claim("token_type") ~= "access" then
                     return kong.response.exit(401, { message = "access token required" })
                   end
-                  kong.service.request.set_header("X-User-ID", claims.sub or "")
-                  kong.service.request.set_header("X-Tenant-ID", claims.tenant_id or "")
-                  kong.service.request.set_header("X-Tenant-Slug", claims.tenant or "")
-                  kong.service.request.set_header("X-User-Role", claims.role or "")
+                  kong.service.request.set_header("X-User-ID", claim("sub"))
+                  kong.service.request.set_header("X-Tenant-ID", claim("tenant_id"))
+                  kong.service.request.set_header("X-Tenant-Slug", claim("tenant"))
+                  kong.service.request.set_header("X-User-Role", claim("role"))
           - name: rate-limiting
             config:
               minute: 300
@@ -115,7 +116,7 @@ services:
               run_on_preflight: false
               claims_to_verify:
                 - exp
-          - name: pre-function
+          - name: post-function
             config:
               access:
                 - |
@@ -140,15 +141,16 @@ services:
                   if not decoded then
                     return kong.response.exit(401, { message = "invalid authorization token payload" })
                   end
-                  local cjson = require "cjson.safe"
-                  local claims = cjson.decode(decoded)
-                  if not claims or claims.token_type ~= "access" then
+                  local claim = function(name)
+                    return decoded:match('"' .. name .. '"%s*:%s*"([^"]*)"') or ""
+                  end
+                  if claim("token_type") ~= "access" then
                     return kong.response.exit(401, { message = "access token required" })
                   end
-                  kong.service.request.set_header("X-User-ID", claims.sub or "")
-                  kong.service.request.set_header("X-Tenant-ID", claims.tenant_id or "")
-                  kong.service.request.set_header("X-Tenant-Slug", claims.tenant or "")
-                  kong.service.request.set_header("X-User-Role", claims.role or "")
+                  kong.service.request.set_header("X-User-ID", claim("sub"))
+                  kong.service.request.set_header("X-Tenant-ID", claim("tenant_id"))
+                  kong.service.request.set_header("X-Tenant-Slug", claim("tenant"))
+                  kong.service.request.set_header("X-User-Role", claim("role"))
           - name: rate-limiting
             config:
               minute: 300
