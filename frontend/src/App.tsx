@@ -1,122 +1,700 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useEffect, useState } from 'react'
+import {
+  BrowserRouter,
+  Navigate,
+  NavLink,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from 'react-router'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import {
+  Alert,
+  App as AntApp,
+  Badge,
+  Button,
+  Card,
+  Col,
+  Drawer,
+  Form,
+  Input,
+  Layout,
+  Modal,
+  Popconfirm,
+  Row,
+  Select,
+  Space,
+  Statistic,
+  Table,
+  Tag,
+  Typography,
+  Upload,
+  type TablePaginationConfig,
+  type UploadFile,
+} from 'antd'
+import type { ColumnsType } from 'antd/es/table'
+import type { AxiosError } from 'axios'
+import {
+  createTask,
+  deleteTask,
+  getDashboard,
+  listTasks,
+  listUsers,
+  login,
+  markTaskInactive,
+  register,
+  updateTask,
+} from './api'
+import { useAuthStore } from './store'
+import type { AuthUser, Task, TaskPayload } from './types'
+
+const { Header, Sider, Content } = Layout
+const { Title, Text } = Typography
+const queryClient = new QueryClient()
 
 function App() {
-  const [count, setCount] = useState(0)
+  const hydrate = useAuthStore((state) => state.hydrate)
+
+  useEffect(() => {
+    hydrate()
+  }, [hydrate])
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+    <QueryClientProvider client={queryClient}>
+      <AntApp>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route element={<ProtectedLayout />}>
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/tasks" element={<TasksPage />} />
+              <Route path="/users" element={<UsersPage />} />
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </AntApp>
+    </QueryClientProvider>
   )
+}
+
+function ProtectedLayout() {
+  const token = useAuthStore((state) => state.accessToken)
+  const user = useAuthStore((state) => state.user)
+  const logout = useAuthStore((state) => state.logout)
+  const location = useLocation()
+  const navigate = useNavigate()
+
+  if (!token) {
+    return <Navigate to="/login" replace />
+  }
+
+  const selectedKey = location.pathname.split('/')[1] || 'dashboard'
+
+  return (
+    <Layout className="app-shell">
+      <Sider className="app-sider" width={250} breakpoint="lg" collapsedWidth={0}>
+        <div className="brand">
+          <div className="brand-mark">LG</div>
+          <div>
+            <Text strong>Learn Go</Text>
+            <Text type="secondary">Microservices</Text>
+          </div>
+        </div>
+        <nav className="nav-stack">
+          <NavLink className={selectedKey === 'dashboard' ? 'active' : ''} to="/dashboard">
+            Dashboard
+          </NavLink>
+          <NavLink className={selectedKey === 'tasks' ? 'active' : ''} to="/tasks">
+            Tasks
+          </NavLink>
+          <NavLink className={selectedKey === 'users' ? 'active' : ''} to="/users">
+            Users
+          </NavLink>
+        </nav>
+      </Sider>
+      <Layout>
+        <Header className="app-header">
+          <div>
+            <Text type="secondary">Tenant</Text>
+            <div className="tenant-name">{user?.tenant_slug ?? 'unknown'}</div>
+          </div>
+          <Space>
+            <Tag color={user?.role === 'superadmin' ? 'purple' : 'blue'}>
+              {user?.role ?? 'user'}
+            </Tag>
+            <Button
+              onClick={() => {
+                logout()
+                navigate('/login')
+              }}
+            >
+              Sign out
+            </Button>
+          </Space>
+        </Header>
+        <Content className="app-content">
+          <Routes>
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/tasks" element={<TasksPage />} />
+            <Route path="/users" element={<UsersPage />} />
+          </Routes>
+        </Content>
+      </Layout>
+    </Layout>
+  )
+}
+
+function LoginPage() {
+  const { message } = AntApp.useApp()
+  const navigate = useNavigate()
+  const setSession = useAuthStore((state) => state.setSession)
+  const mutation = useMutation({
+    mutationFn: login,
+    onSuccess: (data) => {
+      setSession(data)
+      message.success('Login successful')
+      navigate('/dashboard')
+    },
+    onError: (error) => message.error(errorMessage(error)),
+  })
+
+  return (
+    <AuthFrame title="Sign in" subtitle="Use your Auth service account">
+      <Form
+        layout="vertical"
+        initialValues={{ tenant_slug: 'default' }}
+        onFinish={(values) => mutation.mutate(values)}
+      >
+        <Form.Item name="tenant_slug" label="Tenant slug" rules={[{ required: true }]}>
+          <Input placeholder="acme" />
+        </Form.Item>
+        <Form.Item name="email" label="Email" rules={[{ required: true, type: 'email' }]}>
+          <Input placeholder="admin@example.com" />
+        </Form.Item>
+        <Form.Item name="password" label="Password" rules={[{ required: true }]}>
+          <Input.Password placeholder="password" />
+        </Form.Item>
+        <Button block type="primary" htmlType="submit" loading={mutation.isPending}>
+          Sign in
+        </Button>
+        <Button block type="link" onClick={() => navigate('/register')}>
+          Create tenant account
+        </Button>
+      </Form>
+    </AuthFrame>
+  )
+}
+
+function RegisterPage() {
+  const { message } = AntApp.useApp()
+  const navigate = useNavigate()
+  const setSession = useAuthStore((state) => state.setSession)
+  const mutation = useMutation({
+    mutationFn: register,
+    onSuccess: (data) => {
+      setSession(data)
+      message.success('Registered and signed in')
+      navigate('/dashboard')
+    },
+    onError: (error) => message.error(errorMessage(error)),
+  })
+
+  return (
+    <AuthFrame title="Register" subtitle="Create a tenant and first user">
+      <Alert
+        className="mb-4"
+        showIcon
+        type="info"
+        message="New registered users are guests in the current backend. Superadmin dashboard routes need a superadmin account."
+      />
+      <Form layout="vertical" onFinish={(values) => mutation.mutate(values)}>
+        <Form.Item name="tenant_name" label="Tenant name" rules={[{ required: true }]}>
+          <Input placeholder="Acme Inc" />
+        </Form.Item>
+        <Form.Item name="tenant_slug" label="Tenant slug" rules={[{ required: true }]}>
+          <Input placeholder="acme" />
+        </Form.Item>
+        <Form.Item name="username" label="Username" rules={[{ required: true }]}>
+          <Input placeholder="mohit" />
+        </Form.Item>
+        <Form.Item name="email" label="Email" rules={[{ required: true, type: 'email' }]}>
+          <Input placeholder="mohit@example.com" />
+        </Form.Item>
+        <Form.Item name="password" label="Password" rules={[{ required: true }]}>
+          <Input.Password placeholder="password" />
+        </Form.Item>
+        <Button block type="primary" htmlType="submit" loading={mutation.isPending}>
+          Register
+        </Button>
+        <Button block type="link" onClick={() => navigate('/login')}>
+          Back to sign in
+        </Button>
+      </Form>
+    </AuthFrame>
+  )
+}
+
+function DashboardPage() {
+  const query = useQuery({ queryKey: ['dashboard'], queryFn: getDashboard, retry: false })
+  const data = query.data
+
+  return (
+    <PageTitle
+      title="Dashboard"
+      description="Superadmin overview from task GraphQL and Auth gRPC."
+    >
+      {query.isError && <Alert type="warning" showIcon message={errorMessage(query.error)} />}
+      <Row gutter={[16, 16]}>
+        <Col xs={24} sm={12} lg={6}>
+          <Card>
+            <Statistic title="Users" value={data?.users.total ?? 0} />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card>
+            <Statistic title="Active users" value={data?.users.active ?? 0} />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card>
+            <Statistic title="Tasks" value={data?.tasks.total ?? 0} />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card>
+            <Statistic title="Active tasks" value={data?.tasks.active ?? 0} />
+          </Card>
+        </Col>
+      </Row>
+      <Row gutter={[16, 16]} className="mt-4">
+        <Col xs={24} lg={12}>
+          <Card title="Tasks by status" loading={query.isLoading}>
+            <Space wrap>
+              {(data?.tasks.by_status ?? []).map((item) => (
+                <Badge key={item.status} count={item.count} color="blue">
+                  <Tag>{item.status}</Tag>
+                </Badge>
+              ))}
+            </Space>
+          </Card>
+        </Col>
+        <Col xs={24} lg={12}>
+          <Card title="Users by role" loading={query.isLoading}>
+            <Space wrap>
+              {(data?.users.by_role ?? []).map((item) => (
+                <Badge key={item.role} count={item.count} color="purple">
+                  <Tag>{item.role}</Tag>
+                </Badge>
+              ))}
+            </Space>
+          </Card>
+        </Col>
+      </Row>
+    </PageTitle>
+  )
+}
+
+function TasksPage() {
+  const { message } = AntApp.useApp()
+  const queryClient = useQueryClient()
+  const [page, setPage] = useState(1)
+  const [search, setSearch] = useState('')
+  const [status, setStatus] = useState<string>()
+  const [drawerTask, setDrawerTask] = useState<Task | null>(null)
+  const [modalTask, setModalTask] = useState<Task | null | undefined>(undefined)
+
+  const query = useQuery({
+    queryKey: ['tasks', page, search, status],
+    queryFn: () =>
+      listTasks({
+        page,
+        per_page: 10,
+        search,
+        status,
+        only_mine: false,
+      }),
+  })
+
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['tasks'] })
+  const inactiveMutation = useMutation({
+    mutationFn: markTaskInactive,
+    onSuccess: () => {
+      message.success('Task marked inactive')
+      invalidate()
+    },
+    onError: (error) => message.error(errorMessage(error)),
+  })
+  const deleteMutation = useMutation({
+    mutationFn: deleteTask,
+    onSuccess: () => {
+      message.success('Task deleted')
+      invalidate()
+    },
+    onError: (error) => message.error(errorMessage(error)),
+  })
+
+  const columns: ColumnsType<Task> = [
+    {
+      title: 'Title',
+      dataIndex: 'title',
+      render: (_, record) => (
+        <Button type="link" className="table-link" onClick={() => setDrawerTask(record)}>
+          {record.title}
+        </Button>
+      ),
+    },
+    { title: 'Status', dataIndex: 'status', render: (value) => <Tag>{value}</Tag> },
+    { title: 'Priority', dataIndex: 'priority', render: priorityTag },
+    {
+      title: 'Active',
+      dataIndex: 'is_active',
+      render: (value) => <Badge status={value ? 'success' : 'default'} text={value ? 'Yes' : 'No'} />,
+    },
+    { title: 'Updated', dataIndex: 'updated_at', render: formatDate },
+    {
+      title: 'Actions',
+      width: 230,
+      render: (_, record) => (
+        <Space>
+          <Button size="small" onClick={() => setModalTask(record)}>
+            Edit
+          </Button>
+          <Button size="small" onClick={() => inactiveMutation.mutate(record.id)}>
+            Inactive
+          </Button>
+          <Popconfirm title="Delete task permanently?" onConfirm={() => deleteMutation.mutate(record.id)}>
+            <Button size="small" danger>
+              Delete
+            </Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ]
+
+  return (
+    <PageTitle title="Tasks" description="Create, update, list, inactivate, and delete tasks.">
+      <Card>
+        <div className="toolbar">
+          <Space wrap>
+            <Input.Search
+              allowClear
+              placeholder="Search tasks"
+              onSearch={(value) => {
+                setPage(1)
+                setSearch(value)
+              }}
+              style={{ width: 260 }}
+            />
+            <Select
+              allowClear
+              placeholder="Status"
+              value={status}
+              onChange={(value) => {
+                setPage(1)
+                setStatus(value)
+              }}
+              style={{ width: 160 }}
+              options={[
+                { value: 'todo', label: 'Todo' },
+                { value: 'in_progress', label: 'In progress' },
+                { value: 'done', label: 'Done' },
+              ]}
+            />
+          </Space>
+          <Button type="primary" onClick={() => setModalTask(null)}>
+            New task
+          </Button>
+        </div>
+        <Table
+          rowKey="id"
+          columns={columns}
+          dataSource={query.data?.items ?? []}
+          loading={query.isLoading}
+          pagination={{
+            current: query.data?.meta.page ?? page,
+            pageSize: query.data?.meta.per_page ?? 10,
+            total: query.data?.meta.total ?? 0,
+            showSizeChanger: false,
+          }}
+          onChange={(pagination: TablePaginationConfig) => setPage(pagination.current ?? 1)}
+          scroll={{ x: 860 }}
+        />
+      </Card>
+      <TaskModal
+        task={modalTask}
+        open={modalTask !== undefined}
+        onClose={() => setModalTask(undefined)}
+        onSaved={() => {
+          setModalTask(undefined)
+          invalidate()
+        }}
+      />
+      <Drawer title={drawerTask?.title} open={!!drawerTask} onClose={() => setDrawerTask(null)}>
+        {drawerTask && (
+          <Space direction="vertical" size="middle" className="full-width">
+            <Text>{drawerTask.description || 'No description'}</Text>
+            <Space>
+              <Tag>{drawerTask.status}</Tag>
+              {priorityTag(drawerTask.priority)}
+            </Space>
+            {drawerTask.image_url && <img className="task-image" src={drawerTask.image_url} alt="" />}
+            <Text type="secondary">Created {formatDate(drawerTask.created_at)}</Text>
+            <Text type="secondary">Updated {formatDate(drawerTask.updated_at)}</Text>
+          </Space>
+        )}
+      </Drawer>
+    </PageTitle>
+  )
+}
+
+function TaskModal({
+  task,
+  open,
+  onClose,
+  onSaved,
+}: {
+  task: Task | null | undefined
+  open: boolean
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const { message } = AntApp.useApp()
+  const [form] = Form.useForm()
+  const [fileList, setFileList] = useState<UploadFile[]>([])
+  const saveMutation = useMutation({
+    mutationFn: (payload: TaskPayload) => (task ? updateTask(task.id, payload) : createTask(payload)),
+    onSuccess: () => {
+      message.success(task ? 'Task updated' : 'Task created')
+      form.resetFields()
+      setFileList([])
+      onSaved()
+    },
+    onError: (error) => message.error(errorMessage(error)),
+  })
+
+  useEffect(() => {
+    if (!open) return
+    form.setFieldsValue({
+      title: task?.title ?? '',
+      description: task?.description ?? '',
+      status: task?.status ?? 'todo',
+      priority: task?.priority ?? 'normal',
+    })
+  }, [form, open, task])
+
+  const handleClose = () => {
+    form.resetFields()
+    setFileList([])
+    onClose()
+  }
+
+  return (
+    <Modal
+      title={task ? 'Edit task' : 'New task'}
+      open={open}
+      onCancel={handleClose}
+      okText={task ? 'Save' : 'Create'}
+      confirmLoading={saveMutation.isPending}
+      onOk={() => form.submit()}
+      destroyOnHidden
+    >
+      <Form
+        form={form}
+        layout="vertical"
+        onFinish={(values) => {
+          saveMutation.mutate({
+            ...values,
+            image: fileList[0]?.originFileObj,
+          })
+        }}
+      >
+        <Form.Item name="title" label="Title" rules={[{ required: true }]}>
+          <Input />
+        </Form.Item>
+        <Form.Item name="description" label="Description">
+          <Input.TextArea rows={4} />
+        </Form.Item>
+        <Row gutter={12}>
+          <Col span={12}>
+            <Form.Item name="status" label="Status">
+              <Select
+                options={[
+                  { value: 'todo', label: 'Todo' },
+                  { value: 'in_progress', label: 'In progress' },
+                  { value: 'done', label: 'Done' },
+                ]}
+              />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item name="priority" label="Priority">
+              <Select
+                options={[
+                  { value: 'low', label: 'Low' },
+                  { value: 'normal', label: 'Normal' },
+                  { value: 'high', label: 'High' },
+                ]}
+              />
+            </Form.Item>
+          </Col>
+        </Row>
+        <Upload
+          beforeUpload={() => false}
+          maxCount={1}
+          fileList={fileList}
+          onChange={({ fileList }) => setFileList(fileList)}
+        >
+          <Button>Select image</Button>
+        </Upload>
+      </Form>
+    </Modal>
+  )
+}
+
+function UsersPage() {
+  const [page, setPage] = useState(1)
+  const [search, setSearch] = useState('')
+  const [role, setRole] = useState<string>()
+  const query = useQuery({
+    queryKey: ['users', page, search, role],
+    queryFn: () => listUsers({ page, per_page: 10, search, role }),
+    retry: false,
+  })
+
+  const columns: ColumnsType<AuthUser> = [
+    { title: 'Username', dataIndex: 'username' },
+    { title: 'Email', dataIndex: 'email' },
+    { title: 'Tenant', dataIndex: 'tenant_slug' },
+    { title: 'Role', dataIndex: 'role', render: (value) => <Tag>{value}</Tag> },
+    {
+      title: 'Active',
+      dataIndex: 'is_active',
+      render: (value) => <Badge status={value ? 'success' : 'default'} text={value ? 'Yes' : 'No'} />,
+    },
+    { title: 'Created', dataIndex: 'created_at', render: formatDate },
+  ]
+
+  return (
+    <PageTitle title="Users" description="Superadmin user list from Auth service.">
+      {query.isError && <Alert type="warning" showIcon message={errorMessage(query.error)} />}
+      <Card>
+        <div className="toolbar">
+          <Space wrap>
+            <Input.Search
+              allowClear
+              placeholder="Search users"
+              onSearch={(value) => {
+                setPage(1)
+                setSearch(value)
+              }}
+              style={{ width: 260 }}
+            />
+            <Select
+              allowClear
+              placeholder="Role"
+              value={role}
+              onChange={(value) => {
+                setPage(1)
+                setRole(value)
+              }}
+              style={{ width: 160 }}
+              options={[
+                { value: 'superadmin', label: 'Superadmin' },
+                { value: 'admin', label: 'Admin' },
+                { value: 'employee', label: 'Employee' },
+                { value: 'guest', label: 'Guest' },
+              ]}
+            />
+          </Space>
+        </div>
+        <Table
+          rowKey="id"
+          columns={columns}
+          dataSource={query.data?.items ?? []}
+          loading={query.isLoading}
+          pagination={{
+            current: query.data?.meta.page ?? page,
+            pageSize: query.data?.meta.per_page ?? 10,
+            total: query.data?.meta.total ?? 0,
+            showSizeChanger: false,
+          }}
+          onChange={(pagination: TablePaginationConfig) => setPage(pagination.current ?? 1)}
+          scroll={{ x: 820 }}
+        />
+      </Card>
+    </PageTitle>
+  )
+}
+
+function AuthFrame({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string
+  subtitle: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className="auth-page">
+      <Card className="auth-card">
+        <Title level={2}>{title}</Title>
+        <Text type="secondary">{subtitle}</Text>
+        <div className="mt-6">{children}</div>
+      </Card>
+    </div>
+  )
+}
+
+function PageTitle({
+  title,
+  description,
+  children,
+}: {
+  title: string
+  description: string
+  children: React.ReactNode
+}) {
+  return (
+    <Space direction="vertical" size="large" className="full-width">
+      <div>
+        <Title level={2} className="page-title">
+          {title}
+        </Title>
+        <Text type="secondary">{description}</Text>
+      </div>
+      {children}
+    </Space>
+  )
+}
+
+function priorityTag(priority: string) {
+  const color = priority === 'high' ? 'red' : priority === 'low' ? 'green' : 'blue'
+  return <Tag color={color}>{priority}</Tag>
+}
+
+function formatDate(value: string) {
+  if (!value) return '-'
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(value))
+}
+
+function errorMessage(error: unknown) {
+  const axiosError = error as AxiosError<{ message?: string; error?: unknown }>
+  if (axiosError.response?.data?.message) {
+    return axiosError.response.data.message
+  }
+  if (error instanceof Error) {
+    return error.message
+  }
+  return 'Something went wrong'
 }
 
 export default App
