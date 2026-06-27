@@ -38,5 +38,8 @@ const (
 	DefaultCacheKey       = "test_key"
 	DefaultCacheValue     = "test_value"
 	DefaultRoleSuperadmin = "superadmin"
+	DefaultRoleAdmin      = "admin"
+	DefaultRoleOwner      = "owner"
+	DefaultRoleStaff      = "staff"
 	DefaultRoleGuest      = "guest"
 )

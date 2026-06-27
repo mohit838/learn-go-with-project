@@ -78,7 +78,7 @@ func (fakeAuthRepo) UserStats(context.Context) (domain.UserStats, error) {
 		Inactive: 0,
 		ByRole: []domain.RoleUserCount{
 			{Role: "superadmin", Count: 1},
-			{Role: "employee", Count: 1},
+			{Role: "staff", Count: 1},
 		},
 		ByTenant: []domain.TenantUserCount{
 			{TenantID: "tenant_01", TenantName: "Default", TenantSlug: "default", Count: 2},

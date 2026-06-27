@@ -13,5 +13,6 @@ CREATE INDEX roles_is_active_idx
 INSERT INTO roles (name, description) VALUES
 	('superadmin', 'Full platform access'),
 	('admin', 'Tenant administration access'),
-	('employee', 'Standard employee access'),
+	('owner', 'Tenant owner access'),
+	('staff', 'Standard staff access'),
 	('guest', 'Limited guest access');

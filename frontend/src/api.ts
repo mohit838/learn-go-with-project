@@ -89,6 +89,11 @@ export async function listTasks(params: Record<string, unknown>) {
   return unwrap(data)
 }
 
+export async function getTask(id: string) {
+  const { data } = await api.get<ApiEnvelope<Task>>(`/tasks/${id}`)
+  return unwrap(data)
+}
+
 export async function createTask(payload: TaskPayload) {
   const { data } = await api.post<ApiEnvelope<Task>>('/tasks', taskBody(payload), {
     headers: payload.image ? { 'Content-Type': 'multipart/form-data' } : undefined,

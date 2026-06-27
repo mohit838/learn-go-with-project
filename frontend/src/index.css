@@ -172,6 +172,12 @@ textarea {
   border: 1px solid #dde3ec;
 }
 
+.task-image-preview {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
 .full-width {
   width: 100%;
 }

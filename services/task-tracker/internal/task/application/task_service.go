@@ -104,7 +104,11 @@ func (s *TaskService) FindByID(ctx context.Context, user domain.UserContext, id 
 	if user.UserID == "" || user.TenantID == "" || strings.TrimSpace(id) == "" {
 		return TaskResponse{}, ErrInvalidInput
 	}
-	task, err := s.repo.FindByID(ctx, user.TenantID, user.UserID, strings.TrimSpace(id))
+	userID := user.UserID
+	if canListTenantTasks(user.Role) {
+		userID = ""
+	}
+	task, err := s.repo.FindByID(ctx, user.TenantID, userID, strings.TrimSpace(id))
 	if err != nil {
 		return TaskResponse{}, err
 	}
@@ -148,7 +152,7 @@ func (s *TaskService) List(ctx context.Context, user domain.UserContext, query T
 
 func canListTenantTasks(role string) bool {
 	switch strings.ToLower(strings.TrimSpace(role)) {
-	case constants.DefaultRoleSuperadmin, constants.DefaultRoleAdmin:
+	case constants.DefaultRoleSuperadmin, constants.DefaultRoleAdmin, constants.DefaultRoleOwner:
 		return true
 	default:
 		return false

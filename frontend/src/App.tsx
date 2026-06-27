@@ -45,6 +45,7 @@ import {
   getDashboard,
   getNotification,
   getNotificationStats,
+  getTask,
   listTasks,
   listUsers,
   login,
@@ -220,7 +221,7 @@ function RegisterPage() {
         className="mb-4"
         showIcon
         type="info"
-        title="New registered users are guests in the current backend. Superadmin dashboard routes need a superadmin account."
+        title="New registered tenant users become owners. Superadmin dashboard routes still need a superadmin account."
       />
       <Form layout="vertical" onFinish={(values) => mutation.mutate(values)}>
         <Form.Item name="tenant_name" label="Tenant name" rules={[{ required: true }]}>
@@ -312,6 +313,7 @@ function DashboardPage() {
 function TasksPage() {
   const { message } = AntApp.useApp()
   const queryClient = useQueryClient()
+  const currentUser = useAuthStore((state) => state.user)
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<string>()
@@ -347,13 +349,29 @@ function TasksPage() {
     },
     onError: (error) => message.error(errorMessage(error)),
   })
+  const taskDetailMutation = useMutation({
+    mutationFn: getTask,
+    onError: (error) => message.error(errorMessage(error)),
+  })
+
+  const openTaskDrawer = (id: string) => {
+    taskDetailMutation.mutate(id, {
+      onSuccess: (task) => setDrawerTask(task),
+    })
+  }
+
+  const openTaskEditor = (id: string) => {
+    taskDetailMutation.mutate(id, {
+      onSuccess: (task) => setModalTask(task),
+    })
+  }
 
   const columns: ColumnsType<Task> = [
     {
       title: 'Title',
       dataIndex: 'title',
       render: (_, record) => (
-        <Button type="link" className="table-link" onClick={() => setDrawerTask(record)}>
+        <Button type="link" className="table-link" onClick={() => openTaskDrawer(record.id)}>
           {record.title}
         </Button>
       ),
@@ -369,21 +387,29 @@ function TasksPage() {
     {
       title: 'Actions',
       width: 230,
-      render: (_, record) => (
-        <Space>
-          <Button size="small" onClick={() => setModalTask(record)}>
-            Edit
-          </Button>
-          <Button size="small" onClick={() => inactiveMutation.mutate(record.id)}>
-            Inactive
-          </Button>
-          <Popconfirm title="Delete task permanently?" onConfirm={() => deleteMutation.mutate(record.id)}>
-            <Button size="small" danger>
-              Delete
+      render: (_, record) => {
+        const isOwner = record.user_id === currentUser?.id
+        return (
+          <Space>
+            <Button
+              size="small"
+              disabled={!isOwner}
+              loading={taskDetailMutation.isPending}
+              onClick={() => openTaskEditor(record.id)}
+            >
+              Edit
             </Button>
-          </Popconfirm>
-        </Space>
-      ),
+            <Button size="small" disabled={!isOwner} onClick={() => inactiveMutation.mutate(record.id)}>
+              Inactive
+            </Button>
+            <Popconfirm title="Delete task permanently?" onConfirm={() => deleteMutation.mutate(record.id)}>
+              <Button size="small" danger disabled={!isOwner}>
+                Delete
+              </Button>
+            </Popconfirm>
+          </Space>
+        )
+      },
     },
   ]
 
@@ -476,13 +502,13 @@ function TaskModal({
 }) {
   const { message } = AntApp.useApp()
   const [form] = Form.useForm()
-  const [fileList, setFileList] = useState<UploadFile[]>([])
+  const [selectedFiles, setSelectedFiles] = useState<UploadFile[]>([])
   const saveMutation = useMutation({
     mutationFn: (payload: TaskPayload) => (task ? updateTask(task.id, payload) : createTask(payload)),
     onSuccess: () => {
       message.success(task ? 'Task updated' : 'Task created')
       form.resetFields()
-      setFileList([])
+      setSelectedFiles([])
       onSaved()
     },
     onError: (error) => message.error(errorMessage(error)),
@@ -500,7 +526,7 @@ function TaskModal({
 
   const handleClose = () => {
     form.resetFields()
-    setFileList([])
+    setSelectedFiles([])
     onClose()
   }
 
@@ -520,7 +546,7 @@ function TaskModal({
         onFinish={(values) => {
           saveMutation.mutate({
             ...values,
-            image: fileList[0]?.originFileObj,
+            image: selectedFiles[0]?.originFileObj,
           })
         }}
       >
@@ -554,13 +580,20 @@ function TaskModal({
             </Form.Item>
           </Col>
         </Row>
+        {task?.image_url && (
+          <div className="task-image-preview">
+            <Text type="secondary">Current image</Text>
+            <img className="task-image" src={task.image_url} alt={task.title} />
+          </div>
+        )}
         <Upload
+          listType="picture"
           beforeUpload={() => false}
           maxCount={1}
-          fileList={fileList}
-          onChange={({ fileList }) => setFileList(fileList)}
+          fileList={selectedFiles}
+          onChange={({ fileList }) => setSelectedFiles(fileList)}
         >
-          <Button>Select image</Button>
+          <Button>{task?.image_url ? 'Replace image' : 'Select image'}</Button>
         </Upload>
       </Form>
     </Modal>
@@ -617,7 +650,8 @@ function UsersPage() {
               options={[
                 { value: 'superadmin', label: 'Superadmin' },
                 { value: 'admin', label: 'Admin' },
-                { value: 'employee', label: 'Employee' },
+                { value: 'owner', label: 'Owner' },
+                { value: 'staff', label: 'Staff' },
                 { value: 'guest', label: 'Guest' },
               ]}
             />

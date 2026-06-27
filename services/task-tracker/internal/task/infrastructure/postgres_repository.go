@@ -91,7 +91,9 @@ func (r *TaskRepository) FindByID(ctx context.Context, tenantID, userID, id stri
 	err := r.db.QueryRowContext(ctx, `
 SELECT id, public_id::text, tenant_id::text, tenant_slug, user_id::text, title, COALESCE(description, ''), status, priority, COALESCE(image_object_key, ''), COALESCE(image_url, ''), is_active, created_at, updated_at
 FROM tasks
-WHERE public_id = $1 AND tenant_id = $2 AND user_id = $3`, id, tenantID, userID).Scan(taskScanDest(&task)...)
+WHERE public_id = $1
+	AND tenant_id = $2
+	AND ($3 = '' OR user_id = $3)`, id, tenantID, userID).Scan(taskScanDest(&task)...)
 	return task, err
 }
 

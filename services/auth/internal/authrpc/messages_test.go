@@ -15,7 +15,7 @@ func TestUserStatsResponseProtoRoundTrip(t *testing.T) {
 		Inactive: 1,
 		ByRole: []*RoleUserCount{
 			{Role: "superadmin", Count: 1},
-			{Role: "employee", Count: 2},
+			{Role: "staff", Count: 2},
 		},
 		ByTenant: []*TenantUserCount{
 			{TenantId: "tenant_01", TenantName: "Default", TenantSlug: "default", Count: 3},

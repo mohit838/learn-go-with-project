@@ -34,7 +34,7 @@ func NewAuthService(repo domain.Repository, tokens *TokenService) *AuthService {
 func (s *AuthService) Register(ctx context.Context, req RegisterRequest) (AuthResponse, error) {
 	req.TenantName = strings.TrimSpace(req.TenantName)
 	req.TenantSlug = strings.TrimSpace(req.TenantSlug)
-	roleName := constants.DefaultRoleGuest
+	roleName := constants.DefaultRoleOwner
 	req.Username = strings.TrimSpace(req.Username)
 	req.Email = strings.TrimSpace(req.Email)
 	if err := validateRegister(req); err != nil {

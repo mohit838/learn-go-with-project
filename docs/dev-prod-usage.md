@@ -86,6 +86,23 @@ Show containers:
 make dev-ps
 ```
 
+## Development Seed Users
+
+Auth migrations seed these demo tenant users for local testing:
+
+```text
+tenant_slug: demo
+
+superadmin@example.com / admin123
+admin@example.com      / admin123
+owner@example.com      / admin123
+staff@example.com      / admin123
+guest@example.com      / admin123
+```
+
+Roles are `superadmin`, `admin`, `owner`, `staff`, and `guest`. Task ownership
+for edit/delete still comes from the task row's `user_id`.
+
 ## Development With APISIX
 
 APISIX is available beside Kong for learning gateway behavior.

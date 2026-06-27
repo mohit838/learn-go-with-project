@@ -43,6 +43,7 @@ const (
 const (
 	DefaultRoleSuperadmin = "superadmin"
 	DefaultRoleAdmin      = "admin"
-	DefaultRoleEmployee   = "employee"
+	DefaultRoleOwner      = "owner"
+	DefaultRoleStaff      = "staff"
 	DefaultRoleGuest      = "guest"
 )
