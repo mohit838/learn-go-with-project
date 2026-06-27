@@ -40,6 +40,7 @@ make up
 
 Open the services through Kong:
 
+- Kong proxy: http://localhost:8000
 - Auth: http://localhost:8000/auth
 - Task tracker: http://localhost:8000/tasks
 - Expense tracker: http://localhost:8000/expenses

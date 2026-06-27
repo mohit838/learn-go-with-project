@@ -209,7 +209,7 @@ function RegisterPage() {
         className="mb-4"
         showIcon
         type="info"
-        message="New registered users are guests in the current backend. Superadmin dashboard routes need a superadmin account."
+        title="New registered users are guests in the current backend. Superadmin dashboard routes need a superadmin account."
       />
       <Form layout="vertical" onFinish={(values) => mutation.mutate(values)}>
         <Form.Item name="tenant_name" label="Tenant name" rules={[{ required: true }]}>
@@ -247,7 +247,7 @@ function DashboardPage() {
       title="Dashboard"
       description="Superadmin overview from task GraphQL and Auth gRPC."
     >
-      {query.isError && <Alert type="warning" showIcon message={errorMessage(query.error)} />}
+      {query.isError && <Alert type="warning" showIcon title={errorMessage(query.error)} />}
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} lg={6}>
           <Card>
@@ -581,7 +581,7 @@ function UsersPage() {
 
   return (
     <PageTitle title="Users" description="Superadmin user list from Auth service.">
-      {query.isError && <Alert type="warning" showIcon message={errorMessage(query.error)} />}
+      {query.isError && <Alert type="warning" showIcon title={errorMessage(query.error)} />}
       <Card>
         <div className="toolbar">
           <Space wrap>

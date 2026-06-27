@@ -317,6 +317,7 @@ Allowed local origins:
 ```text
 http://localhost:3000
 http://localhost:5173
+http://localhost:5174
 ```
 
 The current CORS plugin allows common API methods, `Authorization`,
@@ -389,6 +390,16 @@ Test routes:
 curl http://localhost:8000/auth
 curl http://localhost:8000/tasks
 curl http://localhost:8000/expenses
+```
+
+Local gateway URLs:
+
+```text
+Kong proxy:       http://localhost:8000
+Auth service:     http://localhost:8000/auth
+Task tracker:     http://localhost:8000/tasks
+Expense tracker:  http://localhost:8000/expenses
+Kong admin API:   http://localhost:8001
 ```
 
 Kong admin API:

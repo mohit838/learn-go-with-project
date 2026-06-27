@@ -272,6 +272,7 @@ Useful Kong settings live in `kong/kong.yml` and `kong/kong.dev.yml`:
 Allowed origins:
 http://localhost:3000
 http://localhost:5173
+http://localhost:5174
 
 Route limits:
 /auth     60 requests per minute per IP
@@ -304,9 +305,11 @@ cd services/expense-tracker && go run ./cmd/api
 Gateway URLs:
 
 ```text
-http://localhost:8000/auth
-http://localhost:8000/tasks
-http://localhost:8000/expenses
+Kong proxy:       http://localhost:8000
+Auth service:     http://localhost:8000/auth
+Task tracker:     http://localhost:8000/tasks
+Expense tracker:  http://localhost:8000/expenses
+Kong admin API:   http://localhost:8001
 ```
 
 Full Docker stack:
