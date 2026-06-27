@@ -9,56 +9,43 @@ first, then later decide if it is stable enough to publish.
 
 You usually do not need to touch Go code.
 
-Run these from the project root:
+Use the Go CLI directly from the project root.
 
 Create a migration:
 
 ```sh
-make migrate-make service=auth name=create_users_table
+go -C services/auth run ./cmd/migrate make create_users_table
 ```
 
 Run pending migrations:
 
 ```sh
-make migrate-up service=auth
+go -C services/auth run ./cmd/migrate up
 ```
 
 Check status:
 
 ```sh
-make migrate-status service=auth
+go -C services/auth run ./cmd/migrate status
 ```
 
 Rollback the latest batch:
 
 ```sh
-make migrate-rollback service=auth
+go -C services/auth run ./cmd/migrate rollback
 ```
 
-Use the same commands with:
+Use the same pattern with:
 
 ```text
-service=auth
-service=task-tracker
-service=expense-tracker
+services/auth
+services/task-tracker
+services/expense-tracker
 ```
 
 That is the normal developer workflow.
 
-## Without Make
-
-If `make` is not installed, use the Go CLI directly from the project root.
-
-Auth:
-
-```sh
-go -C services/auth run ./cmd/migrate make create_users_table
-go -C services/auth run ./cmd/migrate up
-go -C services/auth run ./cmd/migrate status
-go -C services/auth run ./cmd/migrate rollback
-```
-
-Task tracker:
+Task tracker example:
 
 ```sh
 go -C services/task-tracker run ./cmd/migrate make create_tasks_table
@@ -67,7 +54,7 @@ go -C services/task-tracker run ./cmd/migrate status
 go -C services/task-tracker run ./cmd/migrate rollback
 ```
 
-Expense tracker:
+Expense tracker example:
 
 ```sh
 go -C services/expense-tracker run ./cmd/migrate make create_expenses_table
@@ -83,15 +70,8 @@ cd services/auth
 go run ./cmd/migrate up
 ```
 
-Behind the scenes, the root `Makefile` goes into the selected service folder
-and runs that service's migration command:
-
-```sh
-cd services/auth && go run ./cmd/migrate up
-```
-
 So the service controls its own `.env`, database connection, and `migrations`
-folder, but the developer gets one clean root command.
+folder.
 
 ## Add To Another Service Or Project
 
@@ -145,13 +125,26 @@ go run ./cmd/migrate status
 go run ./cmd/migrate rollback
 ```
 
-For a root-level command without Make, use Go's `-C` flag:
+For a root-level command, use Go's `-C` flag:
 
 ```sh
 go -C services/my-service run ./cmd/migrate up
 ```
 
-For a monorepo, add root Makefile shortcuts:
+## Optional Make Shortcuts
+
+Make is not required by the library.
+
+This project keeps root Makefile shortcuts only for convenience:
+
+```sh
+make migrate-make service=auth name=create_users_table
+make migrate-up service=auth
+make migrate-status service=auth
+make migrate-rollback service=auth
+```
+
+Those shortcuts only call the same Go CLI commands:
 
 ```makefile
 migrate-up:

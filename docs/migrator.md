@@ -95,70 +95,43 @@ require github.com/mohit838/learn-go-with-project/libs/migrator v0.0.0
 replace github.com/mohit838/learn-go-with-project/libs/migrator => ../../libs/migrator
 ```
 
-## Makefile Commands
+## CLI Commands
 
-Use these commands in normal development. This is the preferred workflow, so
-developers do not need to think about the library internals.
-
-Run them from the project root.
+Use these commands in normal development. Run them from the project root.
 
 Create a migration:
 
 ```sh
-make migrate-make service=auth name=create_users_table
+go -C services/auth run ./cmd/migrate make create_users_table
 ```
 
 Run migrations:
 
 ```sh
-make migrate-up service=auth
+go -C services/auth run ./cmd/migrate up
 ```
 
 Show status:
 
 ```sh
-make migrate-status service=auth
+go -C services/auth run ./cmd/migrate status
 ```
 
 Rollback latest batch:
 
 ```sh
-make migrate-rollback service=auth
+go -C services/auth run ./cmd/migrate rollback
 ```
 
 Use the same commands with:
 
 ```text
-service=task-tracker
-service=expense-tracker
-```
-
-The root Makefile calls the selected service's migration entrypoint:
-
-```sh
-cd services/auth && go run ./cmd/migrate up
+services/task-tracker
+services/expense-tracker
 ```
 
 That means each service keeps its own DB config and migration folder, while the
-developer uses one command style from the root.
-
-## Without Make
-
-If `make` is not installed, use the Go CLI directly from the project root:
-
-```sh
-go -C services/auth run ./cmd/migrate make create_users_table
-go -C services/auth run ./cmd/migrate up
-go -C services/auth run ./cmd/migrate status
-go -C services/auth run ./cmd/migrate rollback
-```
-
-Change the service folder as needed:
-
-```sh
-go -C services/task-tracker run ./cmd/migrate up
-go -C services/expense-tracker run ./cmd/migrate up
-```
+developer can still run from the root.
 
 If your Go version does not support `go -C`, run the command inside the service
 folder:
@@ -166,6 +139,25 @@ folder:
 ```sh
 cd services/auth
 go run ./cmd/migrate up
+```
+
+## Optional Make Commands
+
+Make is not required by the library.
+
+This project keeps Make shortcuts only for convenience:
+
+```sh
+make migrate-make service=auth name=create_users_table
+make migrate-up service=auth
+make migrate-status service=auth
+make migrate-rollback service=auth
+```
+
+Those shortcuts call the selected service's migration entrypoint:
+
+```sh
+cd services/auth && go run ./cmd/migrate up
 ```
 
 ## Adding The Library Somewhere Else
@@ -199,14 +191,14 @@ go run ./cmd/migrate status
 go run ./cmd/migrate rollback
 ```
 
-In a monorepo, add root Makefile shortcuts so users can run the same commands
-from the root.
-
-Without Make, use:
+In a monorepo, use Go's `-C` flag for root commands:
 
 ```sh
 go -C services/my-service run ./cmd/migrate up
 ```
+
+Make shortcuts can be added later if the team wants them, but they are not part
+of the migrator requirement.
 
 ## File Rules
 
