@@ -3,6 +3,7 @@ import {
   BrowserRouter,
   Navigate,
   NavLink,
+  Outlet,
   Route,
   Routes,
   useLocation,
@@ -151,12 +152,7 @@ function ProtectedLayout() {
           </Space>
         </Header>
         <Content className="app-content">
-          <Routes>
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/tasks" element={<TasksPage />} />
-            <Route path="/notifications" element={<NotificationsPage />} />
-            <Route path="/users" element={<UsersPage />} />
-          </Routes>
+          <Outlet />
         </Content>
       </Layout>
     </Layout>
