@@ -6,13 +6,15 @@ Expense Task Tracker is a Go microservices proof of concept with three HTTP serv
 - `task-tracker`
 - `expense-tracker`
 
-The local Docker stack runs the services behind Kong Gateway. Each service uses its own local `.env` file from its service directory.
+The local Docker stack runs the services behind Kong Gateway by default. APISIX is also available as a separate optional gateway for learning. Each service uses its own local `.env` file from its service directory.
 
 ## Gateway Choice
 
 This project uses Kong in DB-less mode. Kong is a good fit here because it gives you clean path-based routing now and can later add authentication, rate limiting, request transforms, logging, and observability without putting that logic into every Go service.
 
 For this project size, lighter options like Caddy, Traefik, or Nginx would also work. Kong is the better choice if you expect this repo to grow into a more complete microservices API platform.
+
+APISIX is included side-by-side in standalone YAML mode so we can compare gateway behavior without changing the Kong setup.
 
 ## Local Setup
 
@@ -32,6 +34,14 @@ cd services/expense-tracker && go run ./cmd/api
 
 Kong will route to your locally running services through `host.docker.internal`.
 
+To try APISIX instead of Kong, run:
+
+```sh
+make apisix-dev
+```
+
+APISIX also routes to locally running services through `host.docker.internal`.
+
 Start everything in Docker when you want a full container check:
 
 ```sh
@@ -45,6 +55,14 @@ Open the services through Kong:
 - Task tracker: http://localhost:8000/tasks
 - Expense tracker: http://localhost:8000/expenses
 - Kong admin API: http://localhost:8001
+
+Open the services through APISIX:
+
+- APISIX proxy: http://localhost:9080
+- Auth: http://localhost:9080/auth
+- Task tracker: http://localhost:9080/tasks
+- Task GraphQL: http://localhost:9080/tasks/graphql
+- Expense tracker: http://localhost:9080/expenses
 
 Stop the stack:
 
@@ -78,6 +96,7 @@ make test
 make fmt
 make tidy
 make gateway
+make apisix
 ```
 
 Migration helpers use the `service` name from the `services/` folder:
@@ -94,6 +113,7 @@ make migrate-rollback service=auth
 - [Step by step learning plan](docs/step-by-step.md)
 - [Upcoming tasks](docs/upcoming-tasks.md)
 - [Kong gateway notes](docs/kong.md)
+- [APISIX gateway notes](docs/apisix.md)
 - [OpenAPI documentation](docs/openapi.md)
 
 ## Project Layout
@@ -101,6 +121,9 @@ make migrate-rollback service=auth
 ```text
 .
 ├── docker-compose.yml
+├── docker-compose.apisix.yml
+├── apisix/
+│   └── apisix.dev.yaml
 ├── kong/
 │   └── kong.yml
 ├── services/

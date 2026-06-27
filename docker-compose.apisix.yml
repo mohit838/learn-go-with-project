@@ -1,0 +1,11 @@
+services:
+  apisix:
+    image: apache/apisix:3.17.0-debian
+    ports:
+      - "9080:9080"
+    volumes:
+      - ./apisix/config.yaml:/usr/local/apisix/conf/config.yaml:ro
+      - ./apisix/apisix.dev.yaml:/usr/local/apisix/conf/apisix.yaml:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped

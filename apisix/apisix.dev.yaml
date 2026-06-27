@@ -1,0 +1,192 @@
+consumers:
+  - username: auth_service
+    plugins:
+      jwt-auth:
+        key: auth-service
+        secret: replace_with_a_long_random_secret
+        algorithm: HS256
+
+routes:
+  - id: auth-route-local
+    name: auth-route-local
+    uris:
+      - /auth
+      - /auth/*
+    plugins:
+      cors:
+        allow_origins: http://localhost:3000,http://localhost:5173,http://localhost:5174
+        allow_methods: GET,POST,PUT,PATCH,DELETE,OPTIONS
+        allow_headers: Accept,Authorization,Content-Type,X-Request-ID
+        expose_headers: X-Request-ID
+        allow_credential: true
+        max_age: 300
+      limit-count:
+        count: 60
+        time_window: 60
+        rejected_code: 429
+        key_type: var
+        key: remote_addr
+      proxy-rewrite:
+        regex_uri:
+          - ^/auth/?(.*)
+          - /$1
+    upstream:
+      type: roundrobin
+      nodes:
+        host.docker.internal:8484: 1
+
+  - id: task-tracker-graphql-route-local
+    name: task-tracker-graphql-route-local
+    priority: 20
+    uri: /tasks/graphql
+    plugins:
+      cors:
+        allow_origins: http://localhost:3000,http://localhost:5173,http://localhost:5174
+        allow_methods: GET,POST,PUT,PATCH,DELETE,OPTIONS
+        allow_headers: Accept,Authorization,Content-Type,X-Request-ID
+        expose_headers: X-Request-ID
+        allow_credential: true
+        max_age: 300
+      jwt-auth:
+        key_claim_name: iss
+        claims_to_verify:
+          - exp
+      serverless-pre-function:
+        phase: access
+        functions:
+          - |
+            return function(conf, ctx)
+              local core = require("apisix.core")
+              local token = core.request.header(ctx, "Authorization")
+              if not token then
+                return 401, { message = "missing authorization token" }
+              end
+              token = token:gsub("^[Bb]earer%s+", "")
+              local payload = token:match("^[^.]+%.([^.]+)%.")
+              if not payload then
+                return 401, { message = "invalid authorization token" }
+              end
+              payload = payload:gsub("-", "+"):gsub("_", "/")
+              local padding = #payload % 4
+              if padding > 0 then
+                payload = payload .. string.rep("=", 4 - padding)
+              end
+              local decoded = ngx.decode_base64(payload)
+              if not decoded then
+                return 401, { message = "invalid authorization token payload" }
+              end
+              local claim = function(name)
+                return decoded:match('"' .. name .. '"%s*:%s*"([^"]*)"') or ""
+              end
+              if claim("token_type") ~= "access" then
+                return 401, { message = "access token required" }
+              end
+              core.request.set_header(ctx, "X-User-ID", claim("sub"))
+              core.request.set_header(ctx, "X-Tenant-ID", claim("tenant_id"))
+              core.request.set_header(ctx, "X-Tenant-Slug", claim("tenant"))
+              core.request.set_header(ctx, "X-User-Role", claim("role"))
+            end
+      limit-count:
+        count: 300
+        time_window: 60
+        rejected_code: 429
+        key_type: var
+        key: remote_addr
+    upstream:
+      type: roundrobin
+      nodes:
+        host.docker.internal:8485: 1
+
+  - id: task-tracker-route-local
+    name: task-tracker-route-local
+    priority: 10
+    uris:
+      - /tasks
+      - /tasks/*
+    plugins:
+      cors:
+        allow_origins: http://localhost:3000,http://localhost:5173,http://localhost:5174
+        allow_methods: GET,POST,PUT,PATCH,DELETE,OPTIONS
+        allow_headers: Accept,Authorization,Content-Type,X-Request-ID
+        expose_headers: X-Request-ID
+        allow_credential: true
+        max_age: 300
+      jwt-auth:
+        key_claim_name: iss
+        claims_to_verify:
+          - exp
+      serverless-pre-function:
+        phase: access
+        functions:
+          - |
+            return function(conf, ctx)
+              local core = require("apisix.core")
+              local token = core.request.header(ctx, "Authorization")
+              if not token then
+                return 401, { message = "missing authorization token" }
+              end
+              token = token:gsub("^[Bb]earer%s+", "")
+              local payload = token:match("^[^.]+%.([^.]+)%.")
+              if not payload then
+                return 401, { message = "invalid authorization token" }
+              end
+              payload = payload:gsub("-", "+"):gsub("_", "/")
+              local padding = #payload % 4
+              if padding > 0 then
+                payload = payload .. string.rep("=", 4 - padding)
+              end
+              local decoded = ngx.decode_base64(payload)
+              if not decoded then
+                return 401, { message = "invalid authorization token payload" }
+              end
+              local claim = function(name)
+                return decoded:match('"' .. name .. '"%s*:%s*"([^"]*)"') or ""
+              end
+              if claim("token_type") ~= "access" then
+                return 401, { message = "access token required" }
+              end
+              core.request.set_header(ctx, "X-User-ID", claim("sub"))
+              core.request.set_header(ctx, "X-Tenant-ID", claim("tenant_id"))
+              core.request.set_header(ctx, "X-Tenant-Slug", claim("tenant"))
+              core.request.set_header(ctx, "X-User-Role", claim("role"))
+            end
+      limit-count:
+        count: 300
+        time_window: 60
+        rejected_code: 429
+        key_type: var
+        key: remote_addr
+    upstream:
+      type: roundrobin
+      nodes:
+        host.docker.internal:8485: 1
+
+  - id: expense-tracker-route-local
+    name: expense-tracker-route-local
+    uris:
+      - /expenses
+      - /expenses/*
+    plugins:
+      cors:
+        allow_origins: http://localhost:3000,http://localhost:5173,http://localhost:5174
+        allow_methods: GET,POST,PUT,PATCH,DELETE,OPTIONS
+        allow_headers: Accept,Authorization,Content-Type,X-Request-ID
+        expose_headers: X-Request-ID
+        allow_credential: true
+        max_age: 300
+      limit-count:
+        count: 300
+        time_window: 60
+        rejected_code: 429
+        key_type: var
+        key: remote_addr
+      proxy-rewrite:
+        regex_uri:
+          - ^/expenses/?(.*)
+          - /$1
+    upstream:
+      type: roundrobin
+      nodes:
+        host.docker.internal:8486: 1
+
+#END
