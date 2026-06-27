@@ -25,8 +25,20 @@ export const useAuthStore = create<AuthState>((set) => ({
   hydrate: () => {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return
-    const stored = JSON.parse(raw) as StoredAuth
-    set(stored)
+    try {
+      const stored = JSON.parse(raw) as Partial<StoredAuth>
+      if (!stored.user || !stored.accessToken || !stored.refreshToken) {
+        localStorage.removeItem(STORAGE_KEY)
+        return
+      }
+      set({
+        user: stored.user,
+        accessToken: stored.accessToken,
+        refreshToken: stored.refreshToken,
+      })
+    } catch {
+      localStorage.removeItem(STORAGE_KEY)
+    }
   },
   setSession: (auth) => {
     const session = {

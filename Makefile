@@ -2,11 +2,20 @@ COMPOSE ?= docker compose
 DEV_COMPOSE ?= docker compose -f docker-compose.dev.yml
 APISIX_COMPOSE ?= docker compose -f docker-compose.apisix.yml
 APISIX_GUI_COMPOSE ?= docker compose -f docker-compose.apisix-gui.yml
+GO_CACHE ?= $(CURDIR)/.cache/go-build
 
-.PHONY: help build up down restart logs ps gateway gateway-dev gateway-dev-down gateway-dev-logs gateway-dev-ps apisix apisix-dev apisix-dev-down apisix-dev-logs apisix-dev-ps apisix-gui apisix-gui-up apisix-gui-down apisix-gui-logs apisix-gui-ps swagger-auth swagger-task-tracker swagger-expense-tracker swagger-generate swagger-generate-auth swagger-generate-task-tracker swagger-generate-expense-tracker migrate-up migrate-down migrate-rollback migrate-status migrate-make test fmt tidy clean
+.PHONY: help dev-up dev-down dev-logs dev-ps dev-check prod-build prod-up prod-down prod-restart prod-logs prod-ps prod-check build up down restart logs ps gateway gateway-dev gateway-dev-down gateway-dev-logs gateway-dev-ps apisix apisix-dev apisix-dev-down apisix-dev-logs apisix-dev-ps apisix-gui apisix-gui-up apisix-gui-down apisix-gui-logs apisix-gui-ps swagger-auth swagger-task-tracker swagger-expense-tracker swagger-generate swagger-generate-auth swagger-generate-task-tracker swagger-generate-expense-tracker migrate-up migrate-down migrate-rollback migrate-status migrate-make test fmt tidy clean
 
 help:
 	@printf "Available targets:\n"
+	@printf "  make dev-up            Start local dev gateway with Kong\n"
+	@printf "  make dev-down          Stop local dev gateway\n"
+	@printf "  make dev-logs          Follow local dev gateway logs\n"
+	@printf "  make dev-check         Validate dev gateway compose files\n"
+	@printf "  make prod-build        Build production-style service images\n"
+	@printf "  make prod-up           Start production-style full Docker stack\n"
+	@printf "  make prod-down         Stop production-style full Docker stack\n"
+	@printf "  make prod-check        Validate production compose file\n"
 	@printf "  make gateway-dev       Start Kong only for local service development\n"
 	@printf "  make gateway-dev-down  Stop Kong dev gateway\n"
 	@printf "  make gateway-dev-logs  Follow Kong dev logs\n"
@@ -38,6 +47,36 @@ help:
 	@printf "  make fmt       Format Go code in every service\n"
 	@printf "  make tidy      Run go mod tidy in every service\n"
 	@printf "  make clean     Remove containers and volumes\n"
+
+dev-up: gateway-dev
+
+dev-down: gateway-dev-down
+
+dev-logs: gateway-dev-logs
+
+dev-ps: gateway-dev-ps
+
+dev-check:
+	$(DEV_COMPOSE) config >/dev/null
+	$(APISIX_COMPOSE) config >/dev/null
+	$(APISIX_GUI_COMPOSE) config >/dev/null
+	@printf "Dev gateway compose files are valid.\n"
+
+prod-build: build
+
+prod-up: up
+
+prod-down: down
+
+prod-restart: restart
+
+prod-logs: logs
+
+prod-ps: ps
+
+prod-check:
+	$(COMPOSE) config >/dev/null
+	@printf "Production compose file is valid.\n"
 
 build:
 	$(COMPOSE) build
@@ -163,7 +202,7 @@ test:
 	@for service in services/*; do \
 		if [ -f "$$service/go.mod" ]; then \
 			printf "\n==> Testing $$service\n"; \
-			(cd "$$service" && go test ./...); \
+			(cd "$$service" && GOCACHE="$(GO_CACHE)" go test ./...); \
 		fi; \
 	done
 

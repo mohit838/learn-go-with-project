@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { getAccessToken } from './store'
+import { getAccessToken, useAuthStore } from './store'
 import type {
   ApiEnvelope,
   AuthResponse,
@@ -24,6 +24,21 @@ api.interceptors.request.use((config) => {
   }
   return config
 })
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const path = error.config?.url ?? ''
+    if (
+      error.response?.status === 401 &&
+      !path.includes('/auth/login') &&
+      !path.includes('/auth/register')
+    ) {
+      useAuthStore.getState().logout()
+    }
+    return Promise.reject(error)
+  },
+)
 
 function unwrap<T>(body: ApiEnvelope<T>): T {
   if (!body.success || body.data === undefined) {

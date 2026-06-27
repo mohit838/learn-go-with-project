@@ -21,7 +21,7 @@ APISIX is included side-by-side in standalone YAML mode so we can compare gatewa
 For daily development, run only Kong in Docker and run the Go services locally in terminal tabs:
 
 ```sh
-make gateway-dev
+make dev-up
 ```
 
 Then start the services locally:
@@ -51,7 +51,7 @@ make apisix-gui-up
 Start everything in Docker when you want a full container check:
 
 ```sh
-make up
+make prod-up
 ```
 
 Open the services through Kong:
@@ -79,7 +79,7 @@ Open APISIX Dashboard mode:
 Stop the stack:
 
 ```sh
-make down
+make prod-down
 ```
 
 Remove containers and volumes:
@@ -110,6 +110,8 @@ make tidy
 make gateway
 make apisix
 make apisix-gui
+make dev-check
+make prod-check
 ```
 
 Migration helpers use the `service` name from the `services/` folder:
@@ -123,6 +125,7 @@ make migrate-rollback service=auth
 
 ## Learning Docs
 
+- [Development and production usage](docs/dev-prod-usage.md)
 - [Step by step learning plan](docs/step-by-step.md)
 - [Upcoming tasks](docs/upcoming-tasks.md)
 - [Kong gateway notes](docs/kong.md)

@@ -26,6 +26,9 @@ func (s *TaskService) Create(ctx context.Context, user domain.UserContext, req C
 	if user.UserID == "" || user.TenantID == "" || req.Title == "" {
 		return TaskResponse{}, ErrInvalidInput
 	}
+	if !validTaskStatus(req.Status) || !validTaskPriority(req.Priority) {
+		return TaskResponse{}, ErrInvalidInput
+	}
 
 	objectKey, imageURL, err := s.uploadImage(ctx, user, upload)
 	if err != nil {
@@ -54,6 +57,9 @@ func (s *TaskService) Update(ctx context.Context, user domain.UserContext, id st
 	req = normalizeUpdate(req)
 	id = strings.TrimSpace(id)
 	if user.UserID == "" || user.TenantID == "" || id == "" || req.Title == "" {
+		return TaskResponse{}, ErrInvalidInput
+	}
+	if !validTaskStatus(req.Status) || !validTaskPriority(req.Priority) {
 		return TaskResponse{}, ErrInvalidInput
 	}
 
@@ -143,6 +149,24 @@ func (s *TaskService) List(ctx context.Context, user domain.UserContext, query T
 func canListTenantTasks(role string) bool {
 	switch strings.ToLower(strings.TrimSpace(role)) {
 	case constants.DefaultRoleSuperadmin, constants.DefaultRoleAdmin:
+		return true
+	default:
+		return false
+	}
+}
+
+func validTaskStatus(status string) bool {
+	switch status {
+	case "todo", "in_progress", "done":
+		return true
+	default:
+		return false
+	}
+}
+
+func validTaskPriority(priority string) bool {
+	switch priority {
+	case "low", "normal", "high":
 		return true
 	default:
 		return false

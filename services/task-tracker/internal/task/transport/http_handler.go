@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"io"
@@ -221,6 +222,8 @@ func writeTaskError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, application.ErrInvalidInput):
 		response.Error(w, http.StatusBadRequest, "invalid task input", err.Error())
+	case errors.Is(err, sql.ErrNoRows):
+		response.Error(w, http.StatusNotFound, "task not found", err.Error())
 	case errors.Is(err, io.EOF):
 		response.Error(w, http.StatusBadRequest, "invalid request body", err.Error())
 	default:
