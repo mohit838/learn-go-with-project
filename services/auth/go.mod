@@ -7,7 +7,7 @@ require github.com/joho/godotenv v1.5.1
 require (
 	github.com/go-chi/chi/v5 v5.3.0
 	github.com/jackc/pgx/v5 v5.10.0
-	github.com/mohit838/mtz-migrator/migrator v0.0.0-20260627080752-13fd6bb344e2
+	github.com/mohit838/mtz-go-migrator/migrator v0.1.1-0.20260627084635-72922ea88842
 	github.com/redis/go-redis/v9 v9.20.1
 	github.com/swaggo/swag v1.16.6
 	go.mongodb.org/mongo-driver v1.17.9

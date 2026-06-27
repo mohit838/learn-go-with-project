@@ -9,7 +9,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/minio/minio-go/v7 v7.2.0
-	github.com/mohit838/mtz-migrator/migrator v0.0.0-20260627080752-13fd6bb344e2
+	github.com/mohit838/mtz-go-migrator/migrator v0.1.1-0.20260627084635-72922ea88842
 	github.com/redis/go-redis/v9 v9.6.1
 	github.com/swaggo/swag v1.16.6
 	go.mongodb.org/mongo-driver v1.17.9
