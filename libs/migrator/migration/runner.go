@@ -2,21 +2,25 @@ package migration
 
 import (
 	"context"
-	"crypto/sha256"
 	"database/sql"
-	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
-	"strings"
 	"time"
 )
 
 type Runner struct {
-	db  *sql.DB
-	dir string
+	db          *sql.DB
+	dir         string
+	tableName   string
+	serviceName string
+}
+
+type Config struct {
+	Dir         string
+	TableName   string
+	ServiceName string
 }
 
 type fileMigration struct {
@@ -34,8 +38,19 @@ type appliedMigration struct {
 	checksum string
 }
 
-func NewRunner(db *sql.DB, dir string) *Runner {
-	return &Runner{db: db, dir: dir}
+func NewRunner(db *sql.DB, cfg Config) *Runner {
+	if cfg.Dir == "" {
+		cfg.Dir = "migrations"
+	}
+	if cfg.TableName == "" {
+		cfg.TableName = "schema_migrations"
+	}
+	return &Runner{
+		db:          db,
+		dir:         cfg.Dir,
+		tableName:   cfg.TableName,
+		serviceName: cfg.ServiceName,
+	}
 }
 
 func (r *Runner) Up(ctx context.Context) error {
@@ -70,7 +85,7 @@ func (r *Runner) Up(ctx context.Context) error {
 		fmt.Println("Nothing to migrate.")
 		return nil
 	}
-	fmt.Printf("Migrated %d migration(s).\n", ran)
+	fmt.Printf("%sMigrated %d migration(s).\n", r.logPrefix(), ran)
 	return nil
 }
 
@@ -108,7 +123,7 @@ func (r *Runner) Rollback(ctx context.Context) error {
 			return err
 		}
 	}
-	fmt.Printf("Rolled back %d migration(s) from batch %d.\n", len(toRollback), batch)
+	fmt.Printf("%sRolled back %d migration(s) from batch %d.\n", r.logPrefix(), len(toRollback), batch)
 	return nil
 }
 
@@ -135,46 +150,30 @@ func (r *Runner) Status(ctx context.Context) error {
 		if appliedFile, ok := applied[file.version]; ok {
 			state = fmt.Sprintf("ran batch=%d", appliedFile.batch)
 		}
-		fmt.Printf("%s %-8s %s\n", file.version, state, file.name)
+		fmt.Printf("%s%s %-8s %s\n", r.logPrefix(), file.version, state, file.name)
 	}
-	return nil
-}
-
-func (r *Runner) Make(name string) error {
-	cleanName := sanitizeName(name)
-	if cleanName == "" {
-		return fmt.Errorf("migration name cannot be empty")
-	}
-	if err := os.MkdirAll(r.dir, 0755); err != nil {
-		return err
-	}
-
-	version := time.Now().UTC().Format("20060102150405")
-	upPath := filepath.Join(r.dir, version+"_"+cleanName+".up.sql")
-	downPath := filepath.Join(r.dir, version+"_"+cleanName+".down.sql")
-	if err := os.WriteFile(upPath, []byte("-- Write migration SQL here.\n"), 0644); err != nil {
-		return err
-	}
-	if err := os.WriteFile(downPath, []byte("-- Write rollback SQL here.\n"), 0644); err != nil {
-		return err
-	}
-
-	fmt.Println("Created", upPath)
-	fmt.Println("Created", downPath)
 	return nil
 }
 
 func (r *Runner) ensureStore(ctx context.Context) error {
-	_, err := r.db.ExecContext(ctx, `
-CREATE TABLE IF NOT EXISTS schema_migrations (
+	if !safeIdentifier(r.tableName) {
+		return fmt.Errorf("invalid migration table name: %s", r.tableName)
+	}
+	_, err := r.db.ExecContext(ctx, fmt.Sprintf(`
+CREATE TABLE IF NOT EXISTS %s (
 	id BIGSERIAL PRIMARY KEY,
 	version TEXT NOT NULL UNIQUE,
 	name TEXT NOT NULL,
+	service_name TEXT NOT NULL DEFAULT '',
 	batch INTEGER NOT NULL,
 	checksum TEXT NOT NULL,
 	applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	execution_ms BIGINT NOT NULL DEFAULT 0
-)`)
+)`, r.tableName))
+	if err != nil {
+		return err
+	}
+	_, err = r.db.ExecContext(ctx, fmt.Sprintf(`ALTER TABLE %s ADD COLUMN IF NOT EXISTS service_name TEXT NOT NULL DEFAULT ''`, r.tableName))
 	return err
 }
 
@@ -194,16 +193,16 @@ func (r *Runner) runUp(ctx context.Context, file fileMigration, batch int) error
 		return fmt.Errorf("run %s: %w", file.upPath, err)
 	}
 	executionMS := time.Since(start).Milliseconds()
-	if _, err := tx.ExecContext(ctx, `
-INSERT INTO schema_migrations (version, name, batch, checksum, execution_ms)
-VALUES ($1, $2, $3, $4, $5)`, file.version, file.name, batch, file.checksum, executionMS); err != nil {
+	if _, err := tx.ExecContext(ctx, fmt.Sprintf(`
+INSERT INTO %s (version, name, service_name, batch, checksum, execution_ms)
+VALUES ($1, $2, $3, $4, $5, $6)`, r.tableName), file.version, file.name, r.serviceName, batch, file.checksum, executionMS); err != nil {
 		_ = tx.Rollback()
 		return err
 	}
 	if err := tx.Commit(); err != nil {
 		return err
 	}
-	fmt.Println("Migrated", filepath.Base(file.upPath))
+	fmt.Println(r.logPrefix()+"Migrated", filepath.Base(file.upPath))
 	return nil
 }
 
@@ -221,19 +220,19 @@ func (r *Runner) runDown(ctx context.Context, file fileMigration) error {
 		_ = tx.Rollback()
 		return fmt.Errorf("rollback %s: %w", file.downPath, err)
 	}
-	if _, err := tx.ExecContext(ctx, `DELETE FROM schema_migrations WHERE version = $1`, file.version); err != nil {
+	if _, err := tx.ExecContext(ctx, fmt.Sprintf(`DELETE FROM %s WHERE version = $1`, r.tableName), file.version); err != nil {
 		_ = tx.Rollback()
 		return err
 	}
 	if err := tx.Commit(); err != nil {
 		return err
 	}
-	fmt.Println("Rolled back", filepath.Base(file.downPath))
+	fmt.Println(r.logPrefix()+"Rolled back", filepath.Base(file.downPath))
 	return nil
 }
 
 func (r *Runner) applied(ctx context.Context) (map[string]appliedMigration, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT version, name, batch, checksum FROM schema_migrations ORDER BY version`)
+	rows, err := r.db.QueryContext(ctx, fmt.Sprintf(`SELECT version, name, batch, checksum FROM %s ORDER BY version`, r.tableName))
 	if err != nil {
 		return nil, err
 	}
@@ -250,65 +249,24 @@ func (r *Runner) applied(ctx context.Context) (map[string]appliedMigration, erro
 	return applied, rows.Err()
 }
 
-func (r *Runner) loadFiles() ([]fileMigration, error) {
-	entries, err := os.ReadDir(r.dir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, err
+func (r *Runner) logPrefix() string {
+	if r.serviceName == "" {
+		return ""
 	}
+	return "[" + r.serviceName + "] "
+}
 
-	byVersion := make(map[string]*fileMigration)
-	for _, entry := range entries {
-		if entry.IsDir() {
+func safeIdentifier(value string) bool {
+	if value == "" {
+		return false
+	}
+	for i, char := range value {
+		if char == '_' || char >= 'a' && char <= 'z' || char >= 'A' && char <= 'Z' || i > 0 && char >= '0' && char <= '9' {
 			continue
 		}
-		filename := entry.Name()
-		direction := ""
-		switch {
-		case strings.HasSuffix(filename, ".up.sql"):
-			direction = "up"
-		case strings.HasSuffix(filename, ".down.sql"):
-			direction = "down"
-		default:
-			continue
-		}
-
-		parts := strings.SplitN(strings.TrimSuffix(strings.TrimSuffix(filename, ".up.sql"), ".down.sql"), "_", 2)
-		if len(parts) != 2 {
-			return nil, fmt.Errorf("invalid migration filename: %s", filename)
-		}
-		version, name := parts[0], parts[1]
-		item := byVersion[version]
-		if item == nil {
-			item = &fileMigration{version: version, name: name}
-			byVersion[version] = item
-		}
-		path := filepath.Join(r.dir, filename)
-		if direction == "up" {
-			item.upPath = path
-			checksum, err := checksumFile(path)
-			if err != nil {
-				return nil, err
-			}
-			item.checksum = checksum
-		} else {
-			item.downPath = path
-		}
+		return false
 	}
-
-	files := make([]fileMigration, 0, len(byVersion))
-	for _, item := range byVersion {
-		if item.upPath == "" || item.downPath == "" {
-			return nil, fmt.Errorf("migration %s_%s must have up and down files", item.version, item.name)
-		}
-		files = append(files, *item)
-	}
-	sort.Slice(files, func(i, j int) bool {
-		return files[i].version < files[j].version
-	})
-	return files, nil
+	return true
 }
 
 func validateChecksums(files []fileMigration, applied map[string]appliedMigration) error {
@@ -329,19 +287,4 @@ func latestBatch(applied map[string]appliedMigration) int {
 		}
 	}
 	return latest
-}
-
-func checksumFile(path string) (string, error) {
-	content, err := os.ReadFile(path)
-	if err != nil {
-		return "", err
-	}
-	sum := sha256.Sum256(content)
-	return hex.EncodeToString(sum[:]), nil
-}
-
-func sanitizeName(name string) string {
-	name = strings.ToLower(strings.TrimSpace(name))
-	name = regexp.MustCompile(`[^a-z0-9]+`).ReplaceAllString(name, "_")
-	return strings.Trim(name, "_")
 }

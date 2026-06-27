@@ -128,6 +128,7 @@ make migrate-rollback service=auth
 - [Development and production usage](docs/dev-prod-usage.md)
 - [Step by step learning plan](docs/step-by-step.md)
 - [Upcoming tasks](docs/upcoming-tasks.md)
+- [Migrator library guideline](docs/migrator.md)
 - [Kong gateway notes](docs/kong.md)
 - [APISIX gateway notes](docs/apisix.md)
 - [OpenAPI documentation](docs/openapi.md)
