@@ -60,12 +60,16 @@ services:
           - name: jwt
             config:
               key_claim_name: iss
+              run_on_preflight: false
               claims_to_verify:
                 - exp
           - name: pre-function
             config:
               access:
                 - |
+                  if kong.request.get_method() == "OPTIONS" then
+                    return
+                  end
                   local token = kong.request.get_header("authorization")
                   if not token then
                     return kong.response.exit(401, { message = "missing authorization token" })
@@ -108,12 +112,16 @@ services:
           - name: jwt
             config:
               key_claim_name: iss
+              run_on_preflight: false
               claims_to_verify:
                 - exp
           - name: pre-function
             config:
               access:
                 - |
+                  if kong.request.get_method() == "OPTIONS" then
+                    return
+                  end
                   local token = kong.request.get_header("authorization")
                   if not token then
                     return kong.response.exit(401, { message = "missing authorization token" })
