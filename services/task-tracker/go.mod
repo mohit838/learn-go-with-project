@@ -2,18 +2,14 @@ module github.com/mohit838/learn-go-with-project
 
 go 1.26.3
 
-require (
-	github.com/joho/godotenv v1.5.1
-	github.com/mohit838/learn-go-with-project/libs/migrator v0.0.0
-)
-
-replace github.com/mohit838/learn-go-with-project/libs/migrator => ../../libs/migrator
+require github.com/joho/godotenv v1.5.1
 
 require (
 	github.com/go-chi/chi/v5 v5.3.0
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/minio/minio-go/v7 v7.2.0
+	github.com/mohit838/mtz-migrator/migrator v0.0.0-20260627080752-13fd6bb344e2
 	github.com/redis/go-redis/v9 v9.6.1
 	github.com/swaggo/swag v1.16.6
 	go.mongodb.org/mongo-driver v1.17.9
