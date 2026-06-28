@@ -163,3 +163,5 @@ make migrate-rollback service=auth
 ```
 
 Each service has its own Go module, Dockerfile, and local `.env` file.
+
+## Later we development and test more to learn
