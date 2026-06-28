@@ -7,10 +7,13 @@ import (
 	"net"
 	"net/http"
 
+	"github.com/mohit838/go-project-stater/config"
+	starterminio "github.com/mohit838/go-project-stater/minio"
+	startermongo "github.com/mohit838/go-project-stater/mongo"
+	starterpostgres "github.com/mohit838/go-project-stater/postgres"
+	starterredis "github.com/mohit838/go-project-stater/redis"
 	authinfra "github.com/mohit838/learn-go-with-project/internal/auth/infrastructure"
 	authtransport "github.com/mohit838/learn-go-with-project/internal/auth/transport"
-	"github.com/mohit838/learn-go-with-project/internal/config"
-	"github.com/mohit838/learn-go-with-project/internal/database"
 	"github.com/mohit838/learn-go-with-project/internal/router"
 	"google.golang.org/grpc"
 )
@@ -37,7 +40,7 @@ func main() {
 	// ========================
 
 	// PostgreSQL connection for primary data storage
-	db, err := database.ConnectDB(cfg.DBURL)
+	db, err := starterpostgres.ConnectConfig(context.Background(), cfg)
 	if err != nil {
 		log.Fatalf("error connecting database: %v", err)
 	}
@@ -46,7 +49,7 @@ func main() {
 
 	// MongoDB connection for audit/event logging
 	// Database: auth_log_db | Collection: auth_logs
-	mongoClient, err := database.NewMongoDB(cfg.MongoURL)
+	mongoClient, mongoDB, err := startermongo.ConnectConfig(context.Background(), cfg)
 	if err != nil {
 		log.Fatalf("error connecting to MongoDB: %v", err)
 	}
@@ -57,12 +60,9 @@ func main() {
 	}()
 	log.Println(">>-->> MongoDB connected")
 
-	// Get MongoDB database instance
-	mongoDB := database.GetAuthDB(mongoClient, cfg.MongoDB)
-
 	// Redis connection for caching (Database 0)
 	// Used for session storage and short-lived data caching
-	redisClient, err := database.NewRedis(cfg.RedisURL)
+	redisClient, err := starterredis.ConnectConfig(context.Background(), cfg)
 	if err != nil {
 		log.Fatalf("error connecting to Redis: %v", err)
 	}
@@ -70,12 +70,7 @@ func main() {
 	log.Println(">>-->> Redis connected")
 
 	// MinIO connection for object/file storage
-	minioClient, err := database.NewMinIO(
-		cfg.MinIOEndpoint,
-		cfg.MinIOAccessKey,
-		cfg.MinIOSecretKey,
-		cfg.MinIOUseSSL,
-	)
+	minioClient, err := starterminio.ConnectConfig(context.Background(), cfg)
 	if err != nil {
 		log.Fatalf("error connecting to MinIO: %v", err)
 	}

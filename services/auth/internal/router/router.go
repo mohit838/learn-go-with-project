@@ -8,14 +8,14 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/minio/minio-go/v7"
+	"github.com/mohit838/go-project-stater/config"
 	"github.com/mohit838/learn-go-with-project/internal/auth/application"
 	"github.com/mohit838/learn-go-with-project/internal/auth/infrastructure"
 	"github.com/mohit838/learn-go-with-project/internal/auth/transport"
-	"github.com/mohit838/learn-go-with-project/internal/config"
 	"github.com/mohit838/learn-go-with-project/internal/constants"
 	"github.com/mohit838/learn-go-with-project/internal/response"
 	"github.com/redis/go-redis/v9"
-	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
 // NewRouter initializes and returns the HTTP router with all endpoints and middleware

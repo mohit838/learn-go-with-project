@@ -2,30 +2,29 @@ module github.com/mohit838/learn-go-with-project
 
 go 1.26.3
 
-require github.com/joho/godotenv v1.5.1
+require github.com/mohit838/go-project-stater v0.1.0
 
 require (
 	github.com/go-chi/chi/v5 v5.3.0
 	github.com/golang/protobuf v1.5.4
-	github.com/jackc/pgx/v5 v5.10.0
 	github.com/mohit838/mtz-go-migrator/migrator v0.1.1-0.20260627084635-72922ea88842
 	github.com/redis/go-redis/v9 v9.20.1
 	github.com/swaggo/swag v1.16.6
-	go.mongodb.org/mongo-driver v1.17.9
+	go.mongodb.org/mongo-driver/v2 v2.2.3
 	golang.org/x/crypto v0.51.0
 	google.golang.org/grpc v1.81.1
 )
 
 require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
-	github.com/golang/snappy v0.0.4 // indirect
+	github.com/golang/snappy v1.0.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
+	github.com/jackc/pgx/v5 v5.10.0 // indirect
 	github.com/klauspost/compress v1.18.6 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.11 // indirect
 	github.com/klauspost/crc32 v1.3.0 // indirect
 	github.com/minio/crc64nvme v1.1.1 // indirect
 	github.com/minio/md5-simd v1.1.2 // indirect
-	github.com/montanaflynn/stats v0.7.1 // indirect
 	github.com/philhofer/fwd v1.2.0 // indirect
 	github.com/rs/xid v1.6.0 // indirect
 	github.com/tinylib/msgp v1.6.1 // indirect
@@ -65,3 +64,5 @@ require (
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
+
+replace github.com/mohit838/go-project-stater => ../../../go-project-stater

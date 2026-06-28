@@ -7,7 +7,7 @@ import (
 	"github.com/minio/minio-go/v7"
 	"github.com/mohit838/learn-go-with-project/internal/response"
 	"github.com/redis/go-redis/v9"
-	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
 type healthDependencies struct {

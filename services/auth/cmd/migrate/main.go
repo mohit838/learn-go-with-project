@@ -6,8 +6,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/mohit838/learn-go-with-project/internal/config"
-	"github.com/mohit838/learn-go-with-project/internal/database"
+	"github.com/mohit838/go-project-stater/config"
+	starterpostgres "github.com/mohit838/go-project-stater/postgres"
 	"github.com/mohit838/mtz-go-migrator/migrator/migration"
 )
 
@@ -30,7 +30,7 @@ func main() {
 		log.Fatalf("load config: %v", err)
 	}
 
-	db, err := database.ConnectDB(cfg.DBURL)
+	db, err := starterpostgres.ConnectConfig(context.Background(), cfg)
 	if err != nil {
 		log.Fatalf("connect database: %v", err)
 	}
