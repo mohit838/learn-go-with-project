@@ -14,6 +14,7 @@ Current routes:
 | --- | --- | --- |
 | `http://localhost:8000/auth` | `/auth` | `http://auth:8484` |
 | `http://localhost:8000/tasks` | `/tasks` | `http://task-tracker:8485` |
+| `http://localhost:8000/tasks/graphql` | `/tasks/graphql` | `http://task-tracker:8485` |
 | `http://localhost:8000/expenses` | `/expenses` | `http://expense-tracker:8486` |
 
 The config lives in [`kong/kong.yml`](../kong/kong.yml).
@@ -240,6 +241,33 @@ Client -> Kong checks token -> service receives trusted request
 
 This keeps repeated security checks out of every service. The service should still validate important business rules, but Kong can handle common edge security.
 
+Current project shape:
+
+- Auth login/register remains public through `/auth`.
+- Kong validates JWTs for `/tasks` and `/tasks/graphql`.
+- Kong forwards trusted identity headers to task-tracker:
+  `X-User-ID`, `X-Tenant-ID`, `X-Tenant-Slug`, and `X-User-Role`.
+- Task-tracker trusts the gateway identity headers and does not validate client
+  Bearer tokens directly.
+- The task dashboard is exposed through `/tasks/graphql` and still checks the
+  `superadmin` business rule inside the service.
+- Auth gRPC remains for internal service-to-service calls.
+- Kong can be swapped with APISIX because both gateways use the same protected
+  route contract and identity headers.
+- Kong sends gateway traces to Zipkin at `http://zipkin:9411/api/v2/spans` in
+  Docker Compose.
+
+GraphQL routing rule:
+
+- Use per-service paths while Kong is a simple API gateway:
+  `/tasks/graphql`, `/expenses/graphql`, and so on.
+- Use one global `/graphql` only if we later add a dedicated GraphQL gateway or
+  federation layer.
+
+Important: browser clients should not be allowed to spoof identity headers.
+Kong overwrites those headers from verified token claims before forwarding to
+task-tracker.
+
 ## Real Scenario: Rate Limiting
 
 Imagine someone calls:
@@ -267,6 +295,38 @@ This is useful for:
 - Protecting services from abuse.
 - Preventing accidental frontend loops from overwhelming APIs.
 - Giving different limits to different clients later.
+
+This project uses Kong route-level rate limits:
+
+| Route | Limit | Why |
+| --- | --- | --- |
+| `/auth` | 60 requests per minute per IP | Public login/register routes need tighter protection. |
+| `/tasks` | 300 requests per minute per IP | Normal API traffic during local development. |
+| `/expenses` | 300 requests per minute per IP | Normal API traffic during local development. |
+
+Auth also keeps a service-level limiter on `POST /register` and `POST /login`.
+That gives sensitive endpoints a final guard even if gateway config changes.
+
+## Real Scenario: Browser CORS
+
+Kong handles browser CORS at the gateway so frontend apps can use one public API
+base URL:
+
+```text
+http://localhost:8000
+```
+
+Allowed local origins:
+
+```text
+http://localhost:3000
+http://localhost:5173
+http://localhost:5174
+```
+
+The current CORS plugin allows common API methods, `Authorization`,
+`Content-Type`, and `X-Request-ID`. Add staging or production frontend origins
+to `kong/kong.yml` before exposing those environments.
 
 ## Real Scenario: Logging And Observability
 
@@ -336,6 +396,16 @@ curl http://localhost:8000/tasks
 curl http://localhost:8000/expenses
 ```
 
+Local gateway URLs:
+
+```text
+Kong proxy:       http://localhost:8000
+Auth service:     http://localhost:8000/auth
+Task tracker:     http://localhost:8000/tasks
+Expense tracker:  http://localhost:8000/expenses
+Kong admin API:   http://localhost:8001
+```
+
 Kong admin API:
 
 ```sh
@@ -354,11 +424,13 @@ curl http://localhost:8001/routes
 
 ## Current Project Recommendation
 
-For this project, keep Kong simple for now:
+For this project, keep Kong responsible for edge concerns:
 
 - Use path routing only.
+- Use gateway-level CORS for browser clients.
+- Use gateway-level rate limits for public traffic.
 - Keep each service responsible for its own business logic.
-- Add auth or rate limiting plugins only when the service routes become real.
+- Keep app-level guards on sensitive routes such as login/register.
 - Add more routes as new services are created.
 
 This keeps the project easy to understand while still using a gateway structure that can grow.

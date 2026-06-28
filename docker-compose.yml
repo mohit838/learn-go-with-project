@@ -36,6 +36,27 @@ services:
       - app-network
     restart: unless-stopped
 
+  notification-service:
+    build:
+      context: ./services/notification-service
+    image: learn-go/notification-service:local
+    env_file:
+      - ./services/notification-service/.env
+    ports:
+      - "8487:8487"
+      - "8587:8587"
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  zipkin:
+    image: openzipkin/zipkin:3.5
+    ports:
+      - "9411:9411"
+    networks:
+      - app-network
+    restart: unless-stopped
+
   kong:
     image: kong:3.9
     environment:
@@ -55,6 +76,8 @@ services:
       - auth
       - task-tracker
       - expense-tracker
+      - notification-service
+      - zipkin
     networks:
       - app-network
     restart: unless-stopped

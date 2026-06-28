@@ -1,59 +1,50 @@
 package main
 
 import (
-	"errors"
-	"fmt"
+	"context"
+	"database/sql"
 	"log"
 	"os"
 
-	"github.com/golang-migrate/migrate/v4"
-	_ "github.com/golang-migrate/migrate/v4/database/postgres"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/mohit838/learn-go-with-project/internal/config"
+	"github.com/mohit838/learn-go-with-project/internal/database"
+	"github.com/mohit838/mtz-go-migrator/migrator/migration"
 )
 
 func main() {
-	if len(os.Args) != 2 {
-		log.Fatal("usage: go run ./cmd/migrate [up|down|version]")
+	args := os.Args[1:]
+	runnerConfig := migration.Config{
+		Dir:         "migrations",
+		ServiceName: "task-tracker",
+	}
+	if !migration.NeedsDatabase(args) {
+		runner := migration.NewRunner(nil, runnerConfig)
+		if err := runner.Run(context.Background(), args); err != nil {
+			log.Fatal(err)
+		}
+		return
 	}
 
 	cfg, err := config.LoadConfig("./.env")
 	if err != nil {
 		log.Fatalf("load config: %v", err)
 	}
-	if cfg.DBURL == "" {
-		log.Fatal("DATABASE_URL is required")
-	}
 
-	m, err := migrate.New("file://migrations", cfg.DBURL)
+	db, err := database.ConnectDB(cfg.DBURL)
 	if err != nil {
-		log.Fatalf("create migration client: %v", err)
+		log.Fatalf("connect database: %v", err)
 	}
-	defer m.Close()
+	defer closeDB(db)
 
-	switch os.Args[1] {
-	case "up":
-		err = m.Up()
-	case "down":
-		err = m.Steps(-1)
-	case "version":
-		version, dirty, versionErr := m.Version()
-		if errors.Is(versionErr, migrate.ErrNilVersion) {
-			fmt.Println("version: no migrations applied")
-			return
-		}
-		if versionErr != nil {
-			log.Fatalf("read migration version: %v", versionErr)
-		}
-		fmt.Printf("version: %d, dirty: %t\n", version, dirty)
-		return
-	default:
-		log.Fatal("usage: go run ./cmd/migrate [up|down|version]")
+	runner := migration.NewRunner(db, runnerConfig)
+
+	if err := runner.Run(context.Background(), args); err != nil {
+		log.Fatal(err)
 	}
+}
 
-	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
-		log.Fatalf("run migration: %v", err)
+func closeDB(db *sql.DB) {
+	if err := db.Close(); err != nil {
+		log.Printf("close database: %v", err)
 	}
-
-	log.Println("migration completed")
 }

@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>APISIX Dev Plugin Manager</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+        color: #172026;
+        background: #f5f7f9;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+      }
+
+      main {
+        width: min(1180px, calc(100vw - 32px));
+        margin: 0 auto;
+        padding: 28px 0 48px;
+      }
+
+      h1 {
+        margin: 0 0 4px;
+        font-size: 28px;
+        line-height: 1.2;
+      }
+
+      p {
+        margin: 0;
+        color: #64717d;
+      }
+
+      label {
+        display: grid;
+        gap: 6px;
+        color: #40505c;
+        font-size: 13px;
+        font-weight: 650;
+      }
+
+      input,
+      select,
+      textarea {
+        width: 100%;
+        border: 1px solid #c8d1dc;
+        border-radius: 6px;
+        padding: 10px 12px;
+        color: #172026;
+        background: #fff;
+        font: inherit;
+      }
+
+      textarea {
+        min-height: 360px;
+        font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+        font-size: 13px;
+        line-height: 1.45;
+        resize: vertical;
+      }
+
+      button {
+        border: 0;
+        border-radius: 6px;
+        padding: 10px 14px;
+        color: #fff;
+        background: #1264d8;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      button.secondary {
+        color: #1d2b36;
+        background: #e3e9ef;
+      }
+
+      button.danger {
+        background: #c5362c;
+      }
+
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.55;
+      }
+
+      .top {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 22px;
+      }
+
+      .panel {
+        border: 1px solid #d9e1e8;
+        border-radius: 8px;
+        background: #fff;
+      }
+
+      .connection {
+        display: grid;
+        grid-template-columns: minmax(240px, 1fr) minmax(220px, 0.8fr) auto;
+        gap: 12px;
+        padding: 14px;
+        margin-bottom: 16px;
+      }
+
+      .workspace {
+        display: grid;
+        grid-template-columns: 330px minmax(0, 1fr);
+        gap: 16px;
+      }
+
+      .routes,
+      .editor {
+        padding: 14px;
+      }
+
+      .routes-header,
+      .editor-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+
+      .routes-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .route {
+        width: 100%;
+        border: 1px solid #d9e1e8;
+        border-radius: 6px;
+        padding: 10px;
+        text-align: left;
+        color: #172026;
+        background: #fff;
+      }
+
+      .route.active {
+        border-color: #1264d8;
+        background: #eef5ff;
+      }
+
+      .route strong {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 14px;
+      }
+
+      .route span {
+        color: #64717d;
+        font-size: 12px;
+      }
+
+      .plugin-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 12px 0;
+      }
+
+      .status {
+        min-height: 22px;
+        margin-top: 12px;
+        color: #40505c;
+        font-size: 13px;
+      }
+
+      .status.error {
+        color: #c5362c;
+      }
+
+      .status.ok {
+        color: #168348;
+      }
+
+      @media (max-width: 860px) {
+        main {
+          width: min(100vw - 20px, 1180px);
+          padding-top: 18px;
+        }
+
+        .top,
+        .connection,
+        .workspace {
+          grid-template-columns: 1fr;
+        }
+
+        .top {
+          display: grid;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="top">
+        <div>
+          <h1>APISIX Dev Plugin Manager</h1>
+          <p>Local helper for enabling route plugins while Dashboard plugin pages are unstable.</p>
+        </div>
+        <button id="reloadRoutes" type="button">Reload Routes</button>
+      </div>
+
+      <section class="panel connection">
+        <label>
+          Admin API URL
+          <input id="adminUrl" value="http://localhost:9180/apisix/admin" />
+        </label>
+        <label>
+          Admin API Key
+          <input id="adminKey" value="dev_apisix_admin_key" />
+        </label>
+        <button id="connect" type="button">Connect</button>
+      </section>
+
+      <section class="workspace">
+        <aside class="panel routes">
+          <div class="routes-header">
+            <strong>Routes</strong>
+            <span id="routeCount">0</span>
+          </div>
+          <div id="routesList" class="routes-list"></div>
+        </aside>
+
+        <section class="panel editor">
+          <div class="editor-header">
+            <strong id="selectedTitle">Select a route</strong>
+            <button id="applyPlugins" type="button" disabled>Apply JSON</button>
+          </div>
+
+          <label>
+            Plugin JSON
+            <textarea id="pluginJson" spellcheck="false" disabled>{}</textarea>
+          </label>
+
+          <div class="plugin-bar">
+            <button id="presetCors" type="button" class="secondary" disabled>Enable CORS</button>
+            <button id="presetRateLimit" type="button" class="secondary" disabled>Enable Rate Limit</button>
+            <button id="presetJwt" type="button" class="secondary" disabled>Enable JWT</button>
+            <button id="removePlugin" type="button" class="danger" disabled>Remove Plugin</button>
+            <select id="pluginName" disabled>
+              <option value="cors">cors</option>
+              <option value="limit-count">limit-count</option>
+              <option value="jwt-auth">jwt-auth</option>
+              <option value="proxy-rewrite">proxy-rewrite</option>
+              <option value="serverless-pre-function">serverless-pre-function</option>
+              <option value="zipkin">zipkin</option>
+            </select>
+          </div>
+
+          <div id="status" class="status"></div>
+        </section>
+      </section>
+    </main>
+
+    <script>
+      const els = {
+        adminUrl: document.querySelector("#adminUrl"),
+        adminKey: document.querySelector("#adminKey"),
+        connect: document.querySelector("#connect"),
+        reloadRoutes: document.querySelector("#reloadRoutes"),
+        routesList: document.querySelector("#routesList"),
+        routeCount: document.querySelector("#routeCount"),
+        selectedTitle: document.querySelector("#selectedTitle"),
+        pluginJson: document.querySelector("#pluginJson"),
+        applyPlugins: document.querySelector("#applyPlugins"),
+        presetCors: document.querySelector("#presetCors"),
+        presetRateLimit: document.querySelector("#presetRateLimit"),
+        presetJwt: document.querySelector("#presetJwt"),
+        removePlugin: document.querySelector("#removePlugin"),
+        pluginName: document.querySelector("#pluginName"),
+        status: document.querySelector("#status"),
+      }
+
+      let routes = []
+      let selectedRoute = null
+
+      const presets = {
+        cors: {
+          allow_origins: "http://localhost:3000,http://localhost:5173,http://localhost:5174",
+          allow_methods: "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+          allow_headers: "Accept,Authorization,Content-Type,X-Request-ID",
+          expose_headers: "X-Request-ID",
+          allow_credential: true,
+          max_age: 300,
+        },
+        "limit-count": {
+          count: 300,
+          time_window: 60,
+          key: "remote_addr",
+          key_type: "var",
+          policy: "local",
+          rejected_code: 429,
+        },
+        "jwt-auth": {
+          key_claim_name: "iss",
+          claims_to_verify: ["exp"],
+        },
+        zipkin: {
+          endpoint: "http://zipkin:9411/api/v2/spans",
+          sample_ratio: 1,
+          service_name: "apisix-gateway-dev",
+        },
+      }
+
+      function setStatus(message, type = "") {
+        els.status.textContent = message
+        els.status.className = `status ${type}`
+      }
+
+      function adminUrl(path) {
+        return `${els.adminUrl.value.replace(/\/$/, "")}${path}`
+      }
+
+      async function request(path, options = {}) {
+        const res = await fetch(adminUrl(path), {
+          ...options,
+          headers: {
+            "Content-Type": "application/json",
+            "X-API-KEY": els.adminKey.value,
+            ...(options.headers || {}),
+          },
+        })
+
+        const text = await res.text()
+        const body = text ? JSON.parse(text) : null
+        if (!res.ok) {
+          throw new Error(body?.error_msg || body?.message || `HTTP ${res.status}`)
+        }
+        return body
+      }
+
+      function normalizeRoutes(body) {
+        const list = body?.list || body?.node?.nodes || []
+        return list.map((item) => item.value || item).filter(Boolean)
+      }
+
+      function routePath(route) {
+        return route.uri || (route.uris || []).join(", ") || "-"
+      }
+
+      function renderRoutes() {
+        els.routesList.innerHTML = ""
+        els.routeCount.textContent = String(routes.length)
+
+        for (const route of routes) {
+          const button = document.createElement("button")
+          button.type = "button"
+          button.className = `route ${selectedRoute?.id === route.id ? "active" : ""}`
+          button.innerHTML = `<strong>${route.name || route.id}</strong><span>${routePath(route)}</span>`
+          button.addEventListener("click", () => selectRoute(route.id))
+          els.routesList.appendChild(button)
+        }
+      }
+
+      function selectRoute(id) {
+        selectedRoute = routes.find((route) => route.id === id)
+        const enabled = Boolean(selectedRoute)
+
+        els.selectedTitle.textContent = selectedRoute?.name || selectedRoute?.id || "Select a route"
+        els.pluginJson.disabled = !enabled
+        els.applyPlugins.disabled = !enabled
+        els.presetCors.disabled = !enabled
+        els.presetRateLimit.disabled = !enabled
+        els.presetJwt.disabled = !enabled
+        els.removePlugin.disabled = !enabled
+        els.pluginName.disabled = !enabled
+        els.pluginJson.value = JSON.stringify(selectedRoute?.plugins || {}, null, 2)
+
+        renderRoutes()
+      }
+
+      async function loadRoutes() {
+        setStatus("Loading routes...")
+        const body = await request("/routes")
+        routes = normalizeRoutes(body)
+        selectedRoute = selectedRoute ? routes.find((route) => route.id === selectedRoute.id) : null
+        renderRoutes()
+        selectRoute(selectedRoute?.id || routes[0]?.id)
+        setStatus("Routes loaded.", "ok")
+      }
+
+      async function updatePlugins(plugins) {
+        if (!selectedRoute) return
+
+        setStatus("Applying plugins...")
+        await request(`/routes/${encodeURIComponent(selectedRoute.id)}`, {
+          method: "PATCH",
+          body: JSON.stringify({ plugins }),
+        })
+
+        await loadRoutes()
+        setStatus("Plugins applied.", "ok")
+      }
+
+      function currentPlugins() {
+        return JSON.parse(els.pluginJson.value || "{}")
+      }
+
+      els.connect.addEventListener("click", () => loadRoutes().catch((err) => setStatus(err.message, "error")))
+      els.reloadRoutes.addEventListener("click", () => loadRoutes().catch((err) => setStatus(err.message, "error")))
+      els.applyPlugins.addEventListener("click", () => updatePlugins(currentPlugins()).catch((err) => setStatus(err.message, "error")))
+
+      els.presetCors.addEventListener("click", () => {
+        const plugins = currentPlugins()
+        plugins.cors = presets.cors
+        els.pluginJson.value = JSON.stringify(plugins, null, 2)
+      })
+
+      els.presetRateLimit.addEventListener("click", () => {
+        const plugins = currentPlugins()
+        plugins["limit-count"] = presets["limit-count"]
+        els.pluginJson.value = JSON.stringify(plugins, null, 2)
+      })
+
+      els.presetJwt.addEventListener("click", () => {
+        const plugins = currentPlugins()
+        plugins["jwt-auth"] = presets["jwt-auth"]
+        els.pluginJson.value = JSON.stringify(plugins, null, 2)
+      })
+
+      els.removePlugin.addEventListener("click", () => {
+        const plugins = currentPlugins()
+        delete plugins[els.pluginName.value]
+        els.pluginJson.value = JSON.stringify(plugins, null, 2)
+      })
+
+      loadRoutes().catch((err) => setStatus(err.message, "error"))
+    </script>
+  </body>
+</html>

@@ -1,0 +1,38 @@
+query TaskDashboard {
+  dashboard {
+    users {
+      total
+      active
+      inactive
+      by_role {
+        role
+        count
+      }
+      by_tenant {
+        tenant_id
+        tenant_name
+        tenant_slug
+        count
+      }
+    }
+    tasks {
+      total
+      active
+      inactive
+      by_status {
+        status
+        count
+      }
+      by_priority {
+        priority
+        count
+      }
+      by_user {
+        user_id
+        total
+        active
+        inactive
+      }
+    }
+  }
+}

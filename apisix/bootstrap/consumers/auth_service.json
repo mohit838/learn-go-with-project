@@ -1,0 +1,10 @@
+{
+  "username": "auth_service",
+  "plugins": {
+    "jwt-auth": {
+      "key": "auth-service",
+      "secret": "replace_with_a_long_random_secret",
+      "algorithm": "HS256"
+    }
+  }
+}

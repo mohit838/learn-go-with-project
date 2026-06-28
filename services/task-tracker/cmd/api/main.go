@@ -2,66 +2,108 @@ package main
 
 import (
 	"context"
-	"log/slog"
-	"net"
+	"fmt"
+	"log"
 	"net/http"
-	"os"
 
-	"github.com/mohit838/learn-go-with-project/internal/audit"
 	"github.com/mohit838/learn-go-with-project/internal/config"
 	"github.com/mohit838/learn-go-with-project/internal/database"
-	grpcserver "github.com/mohit838/learn-go-with-project/internal/grpc"
-	"github.com/mohit838/learn-go-with-project/internal/grpc/taskv1"
-	appLogger "github.com/mohit838/learn-go-with-project/internal/logger"
 	"github.com/mohit838/learn-go-with-project/internal/router"
-	"google.golang.org/grpc"
+	taskinfra "github.com/mohit838/learn-go-with-project/internal/task/infrastructure"
 )
 
 func main() {
+	// ========================
+	// Task Tracker Service API Entry Point
+	// ========================
+	fmt.Println("\n=== Task Tracker Service API ===")
+
+	// Load environment variables from .env file
 	cfg, err := config.LoadConfig("./.env")
 	if err != nil {
-		slog.Error("load config", "error", err)
-		os.Exit(1)
+		log.Println("Error loading config:", err)
+		return
 	}
 
-	logger := appLogger.New(cfg.LogLevel).With("service", cfg.AppName)
+	// Log startup configuration
+	fmt.Printf("App Name: %s | Env: %s | Port: %s | Debug: %v\n\n",
+		cfg.AppName, cfg.AppEnv, cfg.AppPort, cfg.AppDebug)
 
+	// ========================
+	// Database Connections
+	// ========================
+
+	// PostgreSQL connection for primary task data
 	db, err := database.ConnectDB(cfg.DBURL)
 	if err != nil {
-		logger.Error("connect database", "error", err)
-		os.Exit(1)
+		log.Fatalf("error connecting database: %v", err)
 	}
 	defer db.Close()
-	logger.Info("database connected")
+	log.Println(">>-->> PostgreSQL connected")
 
-	mongoClient, auditStore, err := audit.Connect(context.Background(), cfg.MongoURL, cfg.MongoDB)
+	// MongoDB connection for task event logging
+	// Database: task_log_db | Collection: task_logs
+	mongoClient, err := database.NewMongoDB(cfg.MongoURL)
 	if err != nil {
-		logger.Error("connect mongodb", "error", err)
-		os.Exit(1)
+		log.Fatalf("error connecting to MongoDB: %v", err)
 	}
-	defer mongoClient.Disconnect(context.Background())
-	logger.Info("mongodb connected", "database", cfg.MongoDB)
-
-	grpcListener, err := net.Listen("tcp", ":"+cfg.GRPCPort)
-	if err != nil {
-		logger.Error("listen gRPC", "error", err)
-		os.Exit(1)
-	}
-	grpcServer := grpc.NewServer()
-	taskv1.RegisterTaskServiceServer(grpcServer, grpcserver.NewServer(db))
-	defer grpcServer.GracefulStop()
-	go func() {
-		if err := grpcServer.Serve(grpcListener); err != nil {
-			logger.Error("gRPC server stopped", "error", err)
+	defer func() {
+		if err := mongoClient.Disconnect(context.Background()); err != nil {
+			log.Fatalf("error disconnecting MongoDB: %v", err)
 		}
 	}()
-	logger.Info("gRPC server started", "port", cfg.GRPCPort)
+	log.Println(">>-->> MongoDB connected")
 
-	handler := router.NewRouter(db, logger, auditStore)
+	// Get MongoDB database instance
+	mongoDB := database.GetAuthDB(mongoClient, cfg.MongoDB)
+
+	// Redis connection for caching (Database 1)
+	// Used for task cache and temporary data storage
+	redisClient, err := database.NewRedis(cfg.RedisURL)
+	if err != nil {
+		log.Fatalf("error connecting to Redis: %v", err)
+	}
+	defer redisClient.Close()
+	log.Println(">>-->> Redis connected")
+
+	// MinIO connection for object/file storage
+	minioClient, err := database.NewMinIO(
+		cfg.MinIOEndpoint,
+		cfg.MinIOAccessKey,
+		cfg.MinIOSecretKey,
+		cfg.MinIOUseSSL,
+	)
+	if err != nil {
+		log.Fatalf("error connecting to MinIO: %v", err)
+	}
+	if err := database.EnsureMinIOBucket(context.Background(), minioClient, cfg.MinIOBucket, cfg.MinIORegion); err != nil {
+		if database.IsMinIOAccessDenied(err) {
+			log.Printf(">>-->> MinIO bucket ensure skipped; current user has limited bucket permissions | Bucket: %s", cfg.MinIOBucket)
+		} else {
+			log.Fatalf("error ensuring MinIO bucket: %v", err)
+		}
+	}
+	log.Printf(">>-->> MinIO connected | Bucket: %s", cfg.MinIOBucket)
+
+	authClient, err := taskinfra.NewAuthGRPCClient(cfg.AuthGRPCAddress)
+	if err != nil {
+		log.Fatalf("error creating Auth gRPC client: %v", err)
+	}
+	defer authClient.Close()
+	log.Printf(">>-->> Auth gRPC configured | Address: %s", cfg.AuthGRPCAddress)
+
+	// ========================
+	// Initialize Router & Start Server
+	// ========================
+
+	// Initialize HTTP router with all middleware
+	handler := router.NewRouter(db, mongoDB, redisClient, minioClient, cfg.MinIOBucket, cfg, authClient)
+
+	// Start HTTP server on configured port
+	log.Printf("Server starting on port %s...\n", cfg.AppPort)
 	port := ":" + cfg.AppPort
-	logger.Info("server started", "port", cfg.AppPort, "environment", cfg.AppEnv)
 	err = http.ListenAndServe(port, handler)
 	if err != nil {
-		logger.Error("server stopped", "error", err)
+		log.Fatalf("server failed: %v", err)
 	}
 }

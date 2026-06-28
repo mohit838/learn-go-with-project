@@ -2,33 +2,116 @@ package router
 
 import (
 	"database/sql"
-	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/mohit838/learn-go-with-project/internal/audit"
+	"github.com/minio/minio-go/v7"
+	"github.com/mohit838/learn-go-with-project/internal/config"
 	"github.com/mohit838/learn-go-with-project/internal/constants"
-	appLogger "github.com/mohit838/learn-go-with-project/internal/logger"
 	"github.com/mohit838/learn-go-with-project/internal/response"
+	"github.com/mohit838/learn-go-with-project/internal/task/application"
+	"github.com/mohit838/learn-go-with-project/internal/task/infrastructure"
+	"github.com/mohit838/learn-go-with-project/internal/task/transport"
+	"github.com/redis/go-redis/v9"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func NewRouter(db *sql.DB, log *slog.Logger, auditStore *audit.Store) http.Handler {
+func NewRouter(db *sql.DB, mongoDB *mongo.Database, redisClient *redis.Client, minioClient *minio.Client, minioBucket string, cfg config.Cfg, authClient *infrastructure.AuthGRPCClient) http.Handler {
 	r := chi.NewRouter()
 
+	// A good base middleware stack
 	r.Use(middleware.RequestID)
 	r.Use(middleware.ClientIPFromRemoteAddr)
-	r.Use(appLogger.RequestLogger(log, "task-tracker-service", auditStore))
-	r.Use(appLogger.Recovery(log))
+	r.Use(middleware.Logger)
+	r.Use(middleware.Recoverer)
+
+	// Set a timeout value on the request context (ctx), that will signal
+	// through ctx.Done() that the request has timed out and further
+	// processing should be stopped.
 	r.Use(middleware.Timeout(60 * time.Second))
 
-	registerAppAPI(r, "task-tracker-service", db)
-	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
-		response.Error(w, http.StatusNotFound, constants.ErrorNotFound, "route not found")
+	registerHealthRoutes(r, healthDependencies{
+		db:           db,
+		mongoDB:      mongoDB,
+		redisClient:  redisClient,
+		minioClient:  minioClient,
+		minioBucket:  minioBucket,
+		serviceName:  constants.ServiceName,
+		serviceTitle: constants.ServiceTitle,
 	})
-	r.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) {
-		response.Error(w, http.StatusMethodNotAllowed, constants.ErrorMethodNotAllowed, "method not allowed")
+
+	taskRepo := infrastructure.NewTaskRepository(db)
+	imageStorage := infrastructure.NewMinIOImageStorage(minioClient, minioBucket)
+	taskService := application.NewTaskService(taskRepo, imageStorage)
+	taskHandler := transport.NewTaskHandler(taskService)
+	dashboardService := application.NewDashboardService(taskRepo, authClient)
+	graphQLHandler := transport.NewGraphQLHandler(dashboardService)
+
+	r.Group(func(r chi.Router) {
+		r.Use(transport.RequireGatewayAuth())
+		r.Post(constants.RouteTasks, taskHandler.Create)
+		r.Get(constants.RouteTasks, taskHandler.List)
+		r.Get(constants.RouteTaskByID, taskHandler.FindByID)
+		r.Put(constants.RouteTaskByID, taskHandler.Update)
+		r.Patch(constants.RouteTaskByID, taskHandler.Update)
+		r.Patch(constants.RouteTaskInactive, taskHandler.MarkInactive)
+		r.Delete(constants.RouteTaskByID, taskHandler.Delete)
+		r.Post(constants.RouteGraphQL, graphQLHandler.ServeHTTP)
+	})
+
+	// ========================
+	// MongoDB Endpoints
+	// ========================
+	// POST /tasks-log - Create task event log in MongoDB
+	// Example: curl -X POST http://localhost:8485/tasks-log
+	r.Post(constants.RouteLogs, func(w http.ResponseWriter, r *http.Request) {
+		collection := mongoDB.Collection(constants.AuditLogCollection)
+		_, err := collection.InsertOne(r.Context(), map[string]any{
+			"action":    constants.DefaultLogAction,
+			"timestamp": time.Now(),
+		})
+		if err != nil {
+			response.Error(w, http.StatusInternalServerError, "failed to create task log", err.Error())
+			return
+		}
+		response.Success(w, http.StatusCreated, "task log created", map[string]string{
+			"collection": constants.AuditLogCollection,
+		})
+	})
+
+	// ========================
+	// Redis Cache Endpoints
+	// ========================
+	// POST /cache - Set a cache value (1 hour TTL)
+	// Example: curl -X POST http://localhost:8485/cache
+	r.Post(constants.RouteCache, func(w http.ResponseWriter, r *http.Request) {
+		err := redisClient.Set(r.Context(), constants.DefaultCacheKey, constants.DefaultCacheValue, 1*time.Hour).Err()
+		if err != nil {
+			response.Error(w, http.StatusInternalServerError, "failed to set cache", err.Error())
+			return
+		}
+		response.Success(w, http.StatusCreated, "cache set", map[string]string{
+			"key": constants.DefaultCacheKey,
+		})
+	})
+
+	// GET /cache/:key - Retrieve a cache value
+	// Example: curl http://localhost:8485/cache/task_key
+	r.Get(constants.RouteCacheKey, func(w http.ResponseWriter, r *http.Request) {
+		key := chi.URLParam(r, "key")
+		val, err := redisClient.Get(r.Context(), key).Result()
+		if err != nil {
+			response.Error(w, http.StatusNotFound, "cache key not found", map[string]string{
+				"key": key,
+			})
+			return
+		}
+		response.Success(w, http.StatusOK, "cache value found", map[string]string{
+			"key":   key,
+			"value": val,
+		})
 	})
 
 	return r

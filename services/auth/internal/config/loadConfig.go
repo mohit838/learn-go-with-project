@@ -14,8 +14,14 @@ type Cfg struct {
 
 	AppPort  string
 	AppDebug bool
+	GRPCPort string
 
 	LogLevel string
+
+	JWTSecret          string
+	JWTIssuer          string
+	AccessTokenMinutes int
+	RefreshTokenHours  int
 
 	DBHost     string
 	DBPort     string
@@ -29,10 +35,20 @@ type Cfg struct {
 	RedisUser     string
 	RedisPassword string
 	RedisURL      string
-	MongoURL      string
+
+	MongoHost     string
+	MongoPort     string
+	MongoUser     string
+	MongoPassword string
 	MongoDB       string
-	AvatarAPIURL  string
-	TaskGRPCAddr  string
+	MongoURL      string
+
+	MinIOEndpoint  string
+	MinIOAccessKey string
+	MinIOSecretKey string
+	MinIOBucket    string
+	MinIORegion    string
+	MinIOUseSSL    bool
 }
 
 func LoadConfig(path string) (Cfg, error) {
@@ -48,8 +64,14 @@ func LoadConfig(path string) (Cfg, error) {
 
 		AppPort:  getEnv("APP_PORT", ""),
 		AppDebug: getEnvAsBool("APP_DEBUG", false),
+		GRPCPort: getEnv("GRPC_PORT", "8584"),
 
 		LogLevel: getEnv("APP_LOG_LEVEL", ""),
+
+		JWTSecret:          getEnv("JWT_SECRET", "local-dev-secret-change-me"),
+		JWTIssuer:          getEnv("JWT_ISSUER", "auth-service"),
+		AccessTokenMinutes: getEnvAsInt("ACCESS_TOKEN_MINUTES", 15),
+		RefreshTokenHours:  getEnvAsInt("REFRESH_TOKEN_HOURS", 168),
 
 		DBHost:     getEnv("DB_HOST", ""),
 		DBPort:     getEnv("DB_PORT", ""),
@@ -63,10 +85,20 @@ func LoadConfig(path string) (Cfg, error) {
 		RedisUser:     getEnv("REDIS_USER", ""),
 		RedisPassword: getEnv("REDIS_PASSWORD", ""),
 		RedisURL:      getEnv("REDIS_URL", ""),
+
+		MongoHost:     getEnv("MONGO_HOST", ""),
+		MongoPort:     getEnv("MONGO_PORT", ""),
+		MongoUser:     getEnv("MONGO_USER", ""),
+		MongoPassword: getEnv("MONGO_PASSWORD", ""),
+		MongoDB:       getEnv("MONGO_DB", ""),
 		MongoURL:      getEnv("MONGO_URL", ""),
-		MongoDB:       getEnv("MONGO_DB", "appdb"),
-		AvatarAPIURL:  getEnv("AVATAR_API_URL", ""),
-		TaskGRPCAddr:  getEnv("TASK_GRPC_ADDR", ""),
+
+		MinIOEndpoint:  getEnv("MINIO_ENDPOINT", getEnv("S3_ENDPOINT", "")),
+		MinIOAccessKey: getEnv("MINIO_ACCESS_KEY", getEnv("S3_ACCESS_KEY", "")),
+		MinIOSecretKey: getEnv("MINIO_SECRET_KEY", getEnv("S3_SECRET_KEY", "")),
+		MinIOBucket:    getEnv("MINIO_BUCKET", getEnv("S3_BUCKET", "")),
+		MinIORegion:    getEnv("MINIO_REGION", getEnv("S3_REGION", "us-east-1")),
+		MinIOUseSSL:    getEnvAsBool("MINIO_USE_SSL", false),
 	}
 
 	return cfg, nil
@@ -95,4 +127,19 @@ func getEnvAsBool(key string, defaultValue bool) bool {
 	}
 
 	return boolValue
+}
+
+func getEnvAsInt(key string, defaultValue int) int {
+	value := os.Getenv(key)
+
+	if value == "" {
+		return defaultValue
+	}
+
+	intValue, err := strconv.Atoi(value)
+	if err != nil {
+		return defaultValue
+	}
+
+	return intValue
 }

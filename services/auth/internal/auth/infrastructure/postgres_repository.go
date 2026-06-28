@@ -1,0 +1,317 @@
+package infrastructure
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"strings"
+
+	"github.com/mohit838/learn-go-with-project/internal/auth/domain"
+)
+
+type AuthRepository struct {
+	db *sql.DB
+}
+
+func NewAuthRepository(db *sql.DB) *AuthRepository {
+	return &AuthRepository{db: db}
+}
+
+func (r *AuthRepository) CreateTenantUser(ctx context.Context, input domain.CreateUserInput) (domain.AuthUser, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return domain.AuthUser{}, err
+	}
+	defer tx.Rollback()
+
+	var user domain.AuthUser
+	if err := tx.QueryRowContext(ctx, `
+SELECT id, name
+FROM roles
+WHERE name = $1 AND is_active = TRUE`, input.RoleName).Scan(&user.RoleID, &user.RoleName); err != nil {
+		return domain.AuthUser{}, err
+	}
+
+	if err := tx.QueryRowContext(ctx, `
+INSERT INTO tenants (name, slug)
+VALUES ($1, LOWER($2))
+RETURNING id, public_id::text, name, slug`, input.TenantName, input.TenantSlug).Scan(
+		&user.TenantID,
+		&user.TenantPublicID,
+		&user.TenantName,
+		&user.TenantSlug,
+	); err != nil {
+		return domain.AuthUser{}, err
+	}
+
+	if err := tx.QueryRowContext(ctx, `
+INSERT INTO users (tenant_id, role_id, username, email, password_hash)
+VALUES ($1, $2, $3, LOWER($4), $5)
+RETURNING id, public_id::text, username, email, password_hash, is_active, created_at, updated_at`,
+		user.TenantID,
+		user.RoleID,
+		input.Username,
+		input.Email,
+		input.PasswordHash,
+	).Scan(
+		&user.ID,
+		&user.PublicID,
+		&user.Username,
+		&user.Email,
+		&user.PasswordHash,
+		&user.IsActive,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	); err != nil {
+		return domain.AuthUser{}, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return domain.AuthUser{}, err
+	}
+
+	return user, nil
+}
+
+func (r *AuthRepository) FindUserForLogin(ctx context.Context, tenantSlug, email string) (domain.AuthUser, error) {
+	var user domain.AuthUser
+	err := r.db.QueryRowContext(ctx, `
+SELECT
+	u.id,
+	u.public_id::text,
+	u.tenant_id,
+	t.public_id::text,
+	t.name,
+	t.slug,
+	u.role_id,
+	ro.name,
+	u.username,
+	u.email,
+	u.password_hash,
+	u.is_active,
+	u.created_at,
+	u.updated_at
+FROM users u
+JOIN tenants t ON t.id = u.tenant_id
+JOIN roles ro ON ro.id = u.role_id
+WHERE t.slug = LOWER($1)
+	AND u.email = LOWER($2)
+	AND t.is_active = TRUE
+	AND ro.is_active = TRUE`, strings.TrimSpace(tenantSlug), strings.TrimSpace(email)).Scan(
+		&user.ID,
+		&user.PublicID,
+		&user.TenantID,
+		&user.TenantPublicID,
+		&user.TenantName,
+		&user.TenantSlug,
+		&user.RoleID,
+		&user.RoleName,
+		&user.Username,
+		&user.Email,
+		&user.PasswordHash,
+		&user.IsActive,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+	return user, err
+}
+
+func (r *AuthRepository) FindUserByPublicID(ctx context.Context, publicID string) (domain.AuthUser, error) {
+	var user domain.AuthUser
+	err := r.db.QueryRowContext(ctx, `
+	SELECT
+		u.id,
+		u.public_id::text,
+		u.tenant_id,
+		t.public_id::text,
+		t.name,
+		t.slug,
+		u.role_id,
+		ro.name,
+		u.username,
+		u.email,
+		u.password_hash,
+		u.is_active,
+		u.created_at,
+		u.updated_at
+	FROM users u
+	JOIN tenants t ON t.id = u.tenant_id
+	JOIN roles ro ON ro.id = u.role_id
+	WHERE u.public_id::text = $1
+		AND t.is_active = TRUE
+		AND ro.is_active = TRUE`, strings.TrimSpace(publicID)).Scan(
+		&user.ID,
+		&user.PublicID,
+		&user.TenantID,
+		&user.TenantPublicID,
+		&user.TenantName,
+		&user.TenantSlug,
+		&user.RoleID,
+		&user.RoleName,
+		&user.Username,
+		&user.Email,
+		&user.PasswordHash,
+		&user.IsActive,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+	return user, err
+}
+
+func (r *AuthRepository) ListUsers(ctx context.Context, filter domain.UserListFilter) ([]domain.AuthUser, int64, error) {
+	where, args := buildUserListWhere(filter)
+
+	var total int64
+	countQuery := `
+SELECT COUNT(*)
+FROM users u
+JOIN tenants t ON t.id = u.tenant_id
+JOIN roles ro ON ro.id = u.role_id` + where
+	if err := r.db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	args = append(args, filter.Limit, filter.Offset)
+	listQuery := `
+SELECT
+	u.id,
+	u.public_id::text,
+	u.tenant_id,
+	t.public_id::text,
+	t.name,
+	t.slug,
+	u.role_id,
+	ro.name,
+	u.username,
+	u.email,
+	u.password_hash,
+	u.is_active,
+	u.created_at,
+	u.updated_at
+FROM users u
+JOIN tenants t ON t.id = u.tenant_id
+JOIN roles ro ON ro.id = u.role_id` + where + `
+ORDER BY u.created_at DESC, u.id DESC
+LIMIT $` + fmt.Sprint(len(args)-1) + ` OFFSET $` + fmt.Sprint(len(args))
+
+	rows, err := r.db.QueryContext(ctx, listQuery, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	users := make([]domain.AuthUser, 0)
+	for rows.Next() {
+		var user domain.AuthUser
+		if err := rows.Scan(
+			&user.ID,
+			&user.PublicID,
+			&user.TenantID,
+			&user.TenantPublicID,
+			&user.TenantName,
+			&user.TenantSlug,
+			&user.RoleID,
+			&user.RoleName,
+			&user.Username,
+			&user.Email,
+			&user.PasswordHash,
+			&user.IsActive,
+			&user.CreatedAt,
+			&user.UpdatedAt,
+		); err != nil {
+			return nil, 0, err
+		}
+		users = append(users, user)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+
+	return users, total, nil
+}
+
+func buildUserListWhere(filter domain.UserListFilter) (string, []any) {
+	clauses := make([]string, 0)
+	args := make([]any, 0)
+	add := func(clause string, value any) {
+		args = append(args, value)
+		clauses = append(clauses, fmt.Sprintf(clause, len(args)))
+	}
+
+	if filter.Search != "" {
+		add(`(u.username ILIKE '%%' || $%[1]d || '%%' OR u.email ILIKE '%%' || $%[1]d || '%%' OR t.name ILIKE '%%' || $%[1]d || '%%' OR t.slug ILIKE '%%' || $%[1]d || '%%')`, filter.Search)
+	}
+	if filter.Role != "" {
+		add(`ro.name = LOWER($%d)`, filter.Role)
+	}
+	if filter.TenantID != "" {
+		add(`t.public_id::text = $%d`, filter.TenantID)
+	}
+	if filter.TenantSlug != "" {
+		add(`t.slug = LOWER($%d)`, filter.TenantSlug)
+	}
+	if filter.TenantName != "" {
+		add(`t.name ILIKE '%%' || $%d || '%%'`, filter.TenantName)
+	}
+
+	if len(clauses) == 0 {
+		return "", args
+	}
+	return " WHERE " + strings.Join(clauses, " AND "), args
+}
+
+func (r *AuthRepository) UserStats(ctx context.Context) (domain.UserStats, error) {
+	var stats domain.UserStats
+	if err := r.db.QueryRowContext(ctx, `
+	SELECT
+		COUNT(*),
+		COUNT(*) FILTER (WHERE u.is_active = TRUE),
+		COUNT(*) FILTER (WHERE u.is_active = FALSE)
+	FROM users u`).Scan(&stats.Total, &stats.Active, &stats.Inactive); err != nil {
+		return domain.UserStats{}, err
+	}
+
+	roleRows, err := r.db.QueryContext(ctx, `
+	SELECT ro.name, COUNT(*)
+	FROM users u
+	JOIN roles ro ON ro.id = u.role_id
+	GROUP BY ro.name
+	ORDER BY ro.name`)
+	if err != nil {
+		return domain.UserStats{}, err
+	}
+	defer roleRows.Close()
+	for roleRows.Next() {
+		var item domain.RoleUserCount
+		if err := roleRows.Scan(&item.Role, &item.Count); err != nil {
+			return domain.UserStats{}, err
+		}
+		stats.ByRole = append(stats.ByRole, item)
+	}
+	if err := roleRows.Err(); err != nil {
+		return domain.UserStats{}, err
+	}
+
+	tenantRows, err := r.db.QueryContext(ctx, `
+	SELECT t.public_id::text, t.name, t.slug, COUNT(*)
+	FROM users u
+	JOIN tenants t ON t.id = u.tenant_id
+	GROUP BY t.public_id, t.name, t.slug
+	ORDER BY COUNT(*) DESC, t.name ASC`)
+	if err != nil {
+		return domain.UserStats{}, err
+	}
+	defer tenantRows.Close()
+	for tenantRows.Next() {
+		var item domain.TenantUserCount
+		if err := tenantRows.Scan(&item.TenantID, &item.TenantName, &item.TenantSlug, &item.Count); err != nil {
+			return domain.UserStats{}, err
+		}
+		stats.ByTenant = append(stats.ByTenant, item)
+	}
+	if err := tenantRows.Err(); err != nil {
+		return domain.UserStats{}, err
+	}
+
+	return stats, nil
+}

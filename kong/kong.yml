@@ -1,6 +1,43 @@
 _format_version: "3.0"
 _transform: true
 
+plugins:
+  - name: cors
+    config:
+      origins:
+        - http://localhost:3000
+        - http://localhost:5173
+        - http://localhost:5174
+      methods:
+        - GET
+        - POST
+        - PUT
+        - PATCH
+        - DELETE
+        - OPTIONS
+      headers:
+        - Accept
+        - Authorization
+        - Content-Type
+        - X-Request-ID
+      exposed_headers:
+        - X-Request-ID
+      credentials: true
+      max_age: 300
+      preflight_continue: false
+  - name: zipkin
+    config:
+      http_endpoint: http://zipkin:9411/api/v2/spans
+      sample_ratio: 1
+      default_service_name: kong-gateway
+
+consumers:
+  - username: auth-service
+    jwt_secrets:
+      - key: auth-service
+        algorithm: HS256
+        secret: replace_with_prod_auth_jwt_secret
+
 services:
   - name: auth-service
     url: http://auth:8484
@@ -22,6 +59,13 @@ services:
         paths:
           - /auth
         strip_path: true
+        plugins:
+          - name: rate-limiting
+            config:
+              minute: 60
+              policy: local
+              limit_by: ip
+              hide_client_headers: false
 
   - name: task-tracker-service
     url: http://task-tracker:8485
@@ -42,7 +86,108 @@ services:
       - name: task-tracker-route
         paths:
           - /tasks
-        strip_path: true
+        strip_path: false
+        plugins:
+          - name: jwt
+            config:
+              key_claim_name: iss
+              run_on_preflight: false
+              claims_to_verify:
+                - exp
+          - name: post-function
+            config:
+              access:
+                - |
+                  if kong.request.get_method() == "OPTIONS" then
+                    return
+                  end
+                  local token = kong.request.get_header("authorization")
+                  if not token then
+                    return kong.response.exit(401, { message = "missing authorization token" })
+                  end
+                  token = token:gsub("^[Bb]earer%s+", "")
+                  local payload = token:match("^[^.]+%.([^.]+)%.")
+                  if not payload then
+                    return kong.response.exit(401, { message = "invalid authorization token" })
+                  end
+                  payload = payload:gsub("-", "+"):gsub("_", "/")
+                  local padding = #payload % 4
+                  if padding > 0 then
+                    payload = payload .. string.rep("=", 4 - padding)
+                  end
+                  local decoded = ngx.decode_base64(payload)
+                  if not decoded then
+                    return kong.response.exit(401, { message = "invalid authorization token payload" })
+                  end
+                  local claim = function(name)
+                    return decoded:match('"' .. name .. '"%s*:%s*"([^"]*)"') or ""
+                  end
+                  if claim("token_type") ~= "access" then
+                    return kong.response.exit(401, { message = "access token required" })
+                  end
+                  kong.service.request.set_header("X-User-ID", claim("sub"))
+                  kong.service.request.set_header("X-Tenant-ID", claim("tenant_id"))
+                  kong.service.request.set_header("X-Tenant-Slug", claim("tenant"))
+                  kong.service.request.set_header("X-User-Role", claim("role"))
+          - name: rate-limiting
+            config:
+              minute: 300
+              policy: local
+              limit_by: ip
+              hide_client_headers: false
+
+      - name: task-tracker-graphql-route
+        paths:
+          - /tasks/graphql
+        strip_path: false
+        plugins:
+          - name: jwt
+            config:
+              key_claim_name: iss
+              run_on_preflight: false
+              claims_to_verify:
+                - exp
+          - name: post-function
+            config:
+              access:
+                - |
+                  if kong.request.get_method() == "OPTIONS" then
+                    return
+                  end
+                  local token = kong.request.get_header("authorization")
+                  if not token then
+                    return kong.response.exit(401, { message = "missing authorization token" })
+                  end
+                  token = token:gsub("^[Bb]earer%s+", "")
+                  local payload = token:match("^[^.]+%.([^.]+)%.")
+                  if not payload then
+                    return kong.response.exit(401, { message = "invalid authorization token" })
+                  end
+                  payload = payload:gsub("-", "+"):gsub("_", "/")
+                  local padding = #payload % 4
+                  if padding > 0 then
+                    payload = payload .. string.rep("=", 4 - padding)
+                  end
+                  local decoded = ngx.decode_base64(payload)
+                  if not decoded then
+                    return kong.response.exit(401, { message = "invalid authorization token payload" })
+                  end
+                  local claim = function(name)
+                    return decoded:match('"' .. name .. '"%s*:%s*"([^"]*)"') or ""
+                  end
+                  if claim("token_type") ~= "access" then
+                    return kong.response.exit(401, { message = "access token required" })
+                  end
+                  kong.service.request.set_header("X-User-ID", claim("sub"))
+                  kong.service.request.set_header("X-Tenant-ID", claim("tenant_id"))
+                  kong.service.request.set_header("X-Tenant-Slug", claim("tenant"))
+                  kong.service.request.set_header("X-User-Role", claim("role"))
+          - name: rate-limiting
+            config:
+              minute: 300
+              policy: local
+              limit_by: ip
+              hide_client_headers: false
 
   - name: expense-tracker-service
     url: http://expense-tracker:8486
@@ -64,3 +209,66 @@ services:
         paths:
           - /expenses
         strip_path: true
+        plugins:
+          - name: rate-limiting
+            config:
+              minute: 300
+              policy: local
+              limit_by: ip
+              hide_client_headers: false
+
+  - name: notification-service
+    url: http://notification-service:8487
+    routes:
+      - name: notification-route
+        paths:
+          - /notifications
+        strip_path: false
+        plugins:
+          - name: jwt
+            config:
+              key_claim_name: iss
+              run_on_preflight: false
+              claims_to_verify:
+                - exp
+          - name: post-function
+            config:
+              access:
+                - |
+                  if kong.request.get_method() == "OPTIONS" then
+                    return
+                  end
+                  local token = kong.request.get_header("authorization")
+                  if not token then
+                    return kong.response.exit(401, { message = "missing authorization token" })
+                  end
+                  token = token:gsub("^[Bb]earer%s+", "")
+                  local payload = token:match("^[^.]+%.([^.]+)%.")
+                  if not payload then
+                    return kong.response.exit(401, { message = "invalid authorization token" })
+                  end
+                  payload = payload:gsub("-", "+"):gsub("_", "/")
+                  local padding = #payload % 4
+                  if padding > 0 then
+                    payload = payload .. string.rep("=", 4 - padding)
+                  end
+                  local decoded = ngx.decode_base64(payload)
+                  if not decoded then
+                    return kong.response.exit(401, { message = "invalid authorization token payload" })
+                  end
+                  local claim = function(name)
+                    return decoded:match('"' .. name .. '"%s*:%s*"([^"]*)"') or ""
+                  end
+                  if claim("token_type") ~= "access" then
+                    return kong.response.exit(401, { message = "access token required" })
+                  end
+                  kong.service.request.set_header("X-User-ID", claim("sub"))
+                  kong.service.request.set_header("X-Tenant-ID", claim("tenant_id"))
+                  kong.service.request.set_header("X-Tenant-Slug", claim("tenant"))
+                  kong.service.request.set_header("X-User-Role", claim("role"))
+          - name: rate-limiting
+            config:
+              minute: 300
+              policy: local
+              limit_by: ip
+              hide_client_headers: false

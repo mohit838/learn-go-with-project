@@ -1,0 +1,58 @@
+schema {
+  query: Query
+}
+
+type Query {
+  dashboard: Dashboard!
+}
+
+type Dashboard {
+  users: UserStats!
+  tasks: TaskStats!
+}
+
+type UserStats {
+  total: Int!
+  active: Int!
+  inactive: Int!
+  by_role: [RoleUserCount!]!
+  by_tenant: [TenantUserCount!]!
+}
+
+type RoleUserCount {
+  role: String!
+  count: Int!
+}
+
+type TenantUserCount {
+  tenant_id: ID!
+  tenant_name: String!
+  tenant_slug: String!
+  count: Int!
+}
+
+type TaskStats {
+  total: Int!
+  active: Int!
+  inactive: Int!
+  by_status: [StatusTaskCount!]!
+  by_priority: [PriorityTaskCount!]!
+  by_user: [UserTaskCount!]!
+}
+
+type StatusTaskCount {
+  status: String!
+  count: Int!
+}
+
+type PriorityTaskCount {
+  priority: String!
+  count: Int!
+}
+
+type UserTaskCount {
+  user_id: ID!
+  total: Int!
+  active: Int!
+  inactive: Int!
+}

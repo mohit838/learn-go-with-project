@@ -2,36 +2,123 @@ package router
 
 import (
 	"database/sql"
-	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/mohit838/learn-go-with-project/internal/audit"
-	"github.com/mohit838/learn-go-with-project/internal/avatar"
+	"github.com/minio/minio-go/v7"
+	"github.com/mohit838/learn-go-with-project/internal/auth/application"
+	"github.com/mohit838/learn-go-with-project/internal/auth/infrastructure"
+	"github.com/mohit838/learn-go-with-project/internal/auth/transport"
+	"github.com/mohit838/learn-go-with-project/internal/config"
 	"github.com/mohit838/learn-go-with-project/internal/constants"
-	appLogger "github.com/mohit838/learn-go-with-project/internal/logger"
 	"github.com/mohit838/learn-go-with-project/internal/response"
-	"github.com/mohit838/learn-go-with-project/internal/taskclient"
 	"github.com/redis/go-redis/v9"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func NewRouter(db *sql.DB, log *slog.Logger, cache *redis.Client, auditStore *audit.Store, avatarClient *avatar.Client, taskClient *taskclient.Client) http.Handler {
+// NewRouter initializes and returns the HTTP router with all endpoints and middleware
+// Parameters:
+//   - db: PostgreSQL database connection for primary data
+//   - mongoDB: MongoDB database for audit logging (auth_logs collection)
+//   - redisClient: Redis client for caching (Database 0)
+//   - minioClient: MinIO client for object storage
+func NewRouter(db *sql.DB, mongoDB *mongo.Database, redisClient *redis.Client, minioClient *minio.Client, minioBucket string, cfg config.Cfg) http.Handler {
 	r := chi.NewRouter()
 
+	// ========================
+	// Middleware Stack
+	// ========================
+	// RequestID: Add unique request ID to each request
 	r.Use(middleware.RequestID)
+	// ClientIPFromRemoteAddr: Extract client IP from remote address
 	r.Use(middleware.ClientIPFromRemoteAddr)
-	r.Use(appLogger.RequestLogger(log, "auth-service", auditStore))
-	r.Use(appLogger.Recovery(log))
+	// Logger: Log all HTTP requests
+	r.Use(middleware.Logger)
+	// Recoverer: Recover from panics and log them
+	r.Use(middleware.Recoverer)
+	// Timeout: Set 60 second timeout for all requests
 	r.Use(middleware.Timeout(60 * time.Second))
 
-	registerAppAPI(r, "auth-service", db, cache, avatarClient, taskClient)
-	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
-		response.Error(w, http.StatusNotFound, constants.ErrorNotFound, "route not found")
+	registerHealthRoutes(r, healthDependencies{
+		db:           db,
+		mongoDB:      mongoDB,
+		redisClient:  redisClient,
+		minioClient:  minioClient,
+		minioBucket:  minioBucket,
+		serviceName:  constants.ServiceName,
+		serviceTitle: constants.ServiceTitle,
 	})
-	r.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) {
-		response.Error(w, http.StatusMethodNotAllowed, constants.ErrorMethodNotAllowed, "method not allowed")
+
+	authRepo := infrastructure.NewAuthRepository(db)
+	tokenService := application.NewTokenService(
+		cfg.JWTSecret,
+		cfg.JWTIssuer,
+		time.Duration(cfg.AccessTokenMinutes)*time.Minute,
+		time.Duration(cfg.RefreshTokenHours)*time.Hour,
+	)
+	authService := application.NewAuthService(authRepo, tokenService)
+	authHandler := transport.NewAuthHandler(authService)
+
+	r.Post(constants.RouteRegister, authHandler.Register)
+	r.Post(constants.RouteLogin, authHandler.Login)
+	r.Group(func(r chi.Router) {
+		r.Use(transport.RequireRole(tokenService, constants.DefaultRoleSuperadmin))
+		r.Get(constants.RouteUsers, authHandler.ListUsers)
+	})
+
+	// ========================
+	// MongoDB Endpoints
+	// ========================
+	// POST /logs - Create audit log entry in MongoDB
+	// Example: curl -X POST http://localhost:8484/logs
+	r.Post(constants.RouteLogs, func(w http.ResponseWriter, r *http.Request) {
+		collection := mongoDB.Collection(constants.AuditLogCollection)
+		_, err := collection.InsertOne(r.Context(), map[string]any{
+			"action":    constants.DefaultLogAction,
+			"timestamp": time.Now(),
+		})
+		if err != nil {
+			response.Error(w, http.StatusInternalServerError, "failed to create log", err.Error())
+			return
+		}
+		response.Success(w, http.StatusCreated, "log created", map[string]string{
+			"collection": constants.AuditLogCollection,
+		})
+	})
+
+	// ========================
+	// Redis Cache Endpoints
+	// ========================
+	// POST /cache - Set a cache value (1 hour TTL)
+	// Example: curl -X POST http://localhost:8484/cache
+	r.Post(constants.RouteCache, func(w http.ResponseWriter, r *http.Request) {
+		err := redisClient.Set(r.Context(), constants.DefaultCacheKey, constants.DefaultCacheValue, 1*time.Hour).Err()
+		if err != nil {
+			response.Error(w, http.StatusInternalServerError, "failed to set cache", err.Error())
+			return
+		}
+		response.Success(w, http.StatusCreated, "cache set", map[string]string{
+			"key": constants.DefaultCacheKey,
+		})
+	})
+
+	// GET /cache/:key - Retrieve a cache value
+	// Example: curl http://localhost:8484/cache/test_key
+	r.Get(constants.RouteCacheKey, func(w http.ResponseWriter, r *http.Request) {
+		key := chi.URLParam(r, "key")
+		val, err := redisClient.Get(r.Context(), key).Result()
+		if err != nil {
+			response.Error(w, http.StatusNotFound, "cache key not found", map[string]string{
+				"key": key,
+			})
+			return
+		}
+		response.Success(w, http.StatusOK, "cache value found", map[string]string{
+			"key":   key,
+			"value": val,
+		})
 	})
 
 	return r

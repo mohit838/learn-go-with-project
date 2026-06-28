@@ -36,9 +36,9 @@ migration files, with no manual SQL steps.
 ## 4. Simple User CRUD in Auth (Completed)
 
 - Create a `users` table with migration files.
-- Add model, repository, service, handler, request validation, and routes.
+- Add domain, application, infrastructure, transport, request validation, and routes.
 - Implement create, list, get by ID, update, and delete endpoints.
-- Add handler and repository tests.
+- Add application, transport, and repository tests.
 
 **Done when:** the Auth service can manage users through Kong at
 `http://localhost:8000/auth`.
@@ -105,13 +105,14 @@ respond predictably when the provider is unavailable.
 
 ## 9. gRPC Between Services (Completed)
 
-- Start only after REST CRUD and service boundaries are clear.
-- `TaskService.GetTask` is a versioned protobuf contract with generated Go code.
-- Task Tracker hosts it on `GRPC_PORT` (default `8487`); Auth calls it through
-  `GET /tasks/{id}` with a two-second deadline and maps failures to JSON HTTP
-  responses.
-- See [gRPC Between Auth And Task Tracker](grpc.md) for the flow, local setup,
-  and real-world examples.
+- Initial learning version is now added:
+  - Auth exposes `CheckUser` and `UserStats` over gRPC.
+  - Kong validates JWTs for task routes and forwards trusted identity headers.
+  - Task-tracker trusts gateway identity for HTTP requests.
+  - Task-tracker uses Auth gRPC user stats in the superadmin dashboard.
+- Next hardening step: replace the temporary hand-written protobuf-compatible
+  gRPC structs with generated protobuf contracts.
+- Add deadlines, richer error mapping, and a local integration test.
 
 **Done when:** one service-to-service request works through gRPC with a stable,
 versioned contract.
@@ -124,17 +125,28 @@ versioned contract.
 - Document environment variables, migrations, and API examples for every
   completed milestone.
 
-## 11. Go Concurrency And Graceful Shutdown
+## 11. Observability Stack
 
-- Learn when a goroutine helps and when ordinary synchronous code is clearer.
-- Use channels for worker pools, bounded queues, and explicit ownership of work.
-- Propagate `context.Context` cancellation and deadlines to every blocking call.
-- Replace basic `http.ListenAndServe` startup with signal-aware graceful
-  shutdown, then close database and messaging clients in a predictable order.
-- Practice race detection with `go test -race ./...`.
+Add observability after the services have real routes, database calls, cache
+usage, and gateway traffic. Start small in local Docker, then shape a
+production-friendly version.
 
-Start with [Go Concurrency: A Friendly Microservice Study Guide](go-concurrency.md).
+- Add Prometheus metrics for HTTP request count, status, duration, and in-flight
+  requests.
+- Add Grafana dashboards for service health, route latency, error rate, and
+  dependency checks.
+- Add Loki for centralized structured logs from Kong and the Go services.
+- Add distributed tracing with OpenTelemetry so one request can be followed
+  through Kong and service code.
+- Evaluate Elastic APM later if you want a richer APM UI, error grouping,
+  traces, service maps, and searchable transaction data.
+- Add Docker Compose services for local observability, such as Prometheus,
+  Grafana, Loki, Promtail or Alloy, and an OpenTelemetry Collector.
+- Add Makefile commands for developer workflows, for example
+  `make observe-dev`, `make observe-dev-down`, `make observe-dev-logs`, and
+  `make observe-dev-ps`.
+- Add production-oriented Compose or deployment notes with persistent volumes,
+  retention settings, authentication, and resource limits.
 
-**Done when:** each service shuts down on `SIGTERM` without abandoning
-in-flight work, and a small worker-pool exercise has cancellation and race-test
-coverage.
+**Done when:** a request through Kong can be viewed in metrics, logs, and traces,
+and the local observability stack can be started with one Make command.

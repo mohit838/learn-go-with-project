@@ -2,47 +2,93 @@ package main
 
 import (
 	"context"
-	"log/slog"
+	"fmt"
+	"log"
 	"net/http"
-	"os"
 
-	"github.com/mohit838/learn-go-with-project/internal/audit"
 	"github.com/mohit838/learn-go-with-project/internal/config"
 	"github.com/mohit838/learn-go-with-project/internal/database"
-	appLogger "github.com/mohit838/learn-go-with-project/internal/logger"
 	"github.com/mohit838/learn-go-with-project/internal/router"
 )
 
 func main() {
+	// ========================
+	// Expense Tracker Service API Entry Point
+	// ========================
+	fmt.Println("\n=== Expense Tracker Service API ===")
+
+	// Load environment variables from .env file
 	cfg, err := config.LoadConfig("./.env")
 	if err != nil {
-		slog.Error("load config", "error", err)
-		os.Exit(1)
+		log.Println("Error loading config:", err)
+		return
 	}
 
-	logger := appLogger.New(cfg.LogLevel).With("service", cfg.AppName)
+	// Log startup configuration
+	fmt.Printf("App Name: %s | Env: %s | Port: %s | Debug: %v\n\n",
+		cfg.AppName, cfg.AppEnv, cfg.AppPort, cfg.AppDebug)
 
+	// ========================
+	// Database Connections
+	// ========================
+
+	// PostgreSQL connection for expense data storage
 	db, err := database.ConnectDB(cfg.DBURL)
 	if err != nil {
-		logger.Error("connect database", "error", err)
-		os.Exit(1)
+		log.Fatalf("error connecting database: %v", err)
 	}
 	defer db.Close()
-	logger.Info("database connected")
+	log.Println(">>-->> PostgreSQL connected")
 
-	mongoClient, auditStore, err := audit.Connect(context.Background(), cfg.MongoURL, cfg.MongoDB)
+	// MongoDB connection for expense event logging
+	// Database: expense_log_db | Collection: expense_logs
+	mongoClient, err := database.NewMongoDB(cfg.MongoURL)
 	if err != nil {
-		logger.Error("connect mongodb", "error", err)
-		os.Exit(1)
+		log.Fatalf("error connecting to MongoDB: %v", err)
 	}
-	defer mongoClient.Disconnect(context.Background())
-	logger.Info("mongodb connected", "database", cfg.MongoDB)
+	defer func() {
+		if err := mongoClient.Disconnect(context.Background()); err != nil {
+			log.Fatalf("error disconnecting MongoDB: %v", err)
+		}
+	}()
+	log.Println(">>-->> MongoDB connected")
 
-	handler := router.NewRouter(db, logger, auditStore)
+	// Get MongoDB database instance
+	mongoDB := database.GetAuthDB(mongoClient, cfg.MongoDB)
+
+	// Redis connection for caching (Database 2)
+	// Used for expense cache and temporary data storage
+	redisClient, err := database.NewRedis(cfg.RedisURL)
+	if err != nil {
+		log.Fatalf("error connecting to Redis: %v", err)
+	}
+	defer redisClient.Close()
+	log.Println(">>-->> Redis connected")
+
+	// MinIO connection for object/file storage
+	minioClient, err := database.NewMinIO(
+		cfg.MinIOEndpoint,
+		cfg.MinIOAccessKey,
+		cfg.MinIOSecretKey,
+		cfg.MinIOUseSSL,
+	)
+	if err != nil {
+		log.Fatalf("error connecting to MinIO: %v", err)
+	}
+	log.Printf(">>-->> MinIO connected | Bucket: %s", cfg.MinIOBucket)
+
+	// ========================
+	// Initialize Router & Start Server
+	// ========================
+
+	// Initialize HTTP router with all middleware
+	handler := router.NewRouter(db, mongoDB, redisClient, minioClient, cfg.MinIOBucket)
+
+	// Start HTTP server on configured port
+	log.Printf("Server starting on port %s...\n", cfg.AppPort)
 	port := ":" + cfg.AppPort
-	logger.Info("server started", "port", cfg.AppPort, "environment", cfg.AppEnv)
 	err = http.ListenAndServe(port, handler)
 	if err != nil {
-		logger.Error("server stopped", "error", err)
+		log.Fatalf("server failed: %v", err)
 	}
 }
