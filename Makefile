@@ -1,10 +1,8 @@
 COMPOSE ?= docker compose
 DEV_COMPOSE ?= docker compose -f docker-compose.dev.yml
-APISIX_COMPOSE ?= docker compose -f docker-compose.apisix.yml
-APISIX_GUI_COMPOSE ?= docker compose -f docker-compose.apisix-gui.yml
 GO_CACHE ?= $(CURDIR)/.cache/go-build
 
-.PHONY: help dev-up dev-down dev-logs dev-ps dev-check prod-build prod-up prod-down prod-restart prod-logs prod-ps prod-check build up down restart logs ps gateway gateway-dev gateway-dev-down gateway-dev-logs gateway-dev-ps apisix apisix-dev apisix-dev-down apisix-dev-logs apisix-dev-ps apisix-gui apisix-gui-up apisix-gui-down apisix-gui-logs apisix-gui-ps swagger-auth swagger-task-tracker swagger-expense-tracker swagger-generate swagger-generate-auth swagger-generate-task-tracker swagger-generate-expense-tracker migrate-up migrate-down migrate-rollback migrate-status migrate-make test fmt tidy clean
+.PHONY: help dev-up dev-down dev-logs dev-ps dev-check prod-build prod-up prod-down prod-restart prod-logs prod-ps prod-check build up down restart logs ps gateway gateway-dev gateway-dev-down gateway-dev-logs gateway-dev-ps swagger-auth swagger-task-tracker swagger-expense-tracker swagger-generate swagger-generate-auth swagger-generate-task-tracker swagger-generate-expense-tracker migrate-up migrate-down migrate-rollback migrate-status migrate-make test fmt tidy clean
 
 help:
 	@printf "Available targets:\n"
@@ -19,12 +17,6 @@ help:
 	@printf "  make gateway-dev       Start Kong only for local service development\n"
 	@printf "  make gateway-dev-down  Stop Kong dev gateway\n"
 	@printf "  make gateway-dev-logs  Follow Kong dev logs\n"
-	@printf "  make apisix-dev        Start APISIX only for local service development\n"
-	@printf "  make apisix-dev-down   Stop APISIX dev gateway\n"
-	@printf "  make apisix-dev-logs   Follow APISIX dev logs\n"
-	@printf "  make apisix-gui-up     Start APISIX with etcd and Dashboard UI\n"
-	@printf "  make apisix-gui-down   Stop APISIX GUI stack\n"
-	@printf "  make apisix-gui-logs   Follow APISIX GUI stack logs\n"
 	@printf "  make swagger-auth     Open Auth API documentation at http://localhost:8081\n"
 	@printf "  make swagger-task-tracker Open Task Tracker API documentation at http://localhost:8082\n"
 	@printf "  make swagger-expense-tracker Open Expense Tracker API documentation at http://localhost:8083\n"
@@ -58,8 +50,6 @@ dev-ps: gateway-dev-ps
 
 dev-check:
 	$(DEV_COMPOSE) config >/dev/null
-	$(APISIX_COMPOSE) config >/dev/null
-	$(APISIX_GUI_COMPOSE) config >/dev/null
 	@printf "Dev gateway compose files are valid.\n"
 
 prod-build: build
@@ -115,52 +105,6 @@ gateway-dev-logs:
 
 gateway-dev-ps:
 	$(DEV_COMPOSE) ps
-
-apisix:
-	@printf "APISIX proxy:     http://localhost:9080\n"
-	@printf "Auth service:     http://localhost:9080/auth\n"
-	@printf "Task tracker:     http://localhost:9080/tasks\n"
-	@printf "Task GraphQL:     http://localhost:9080/tasks/graphql\n"
-	@printf "Expense tracker:  http://localhost:9080/expenses\n"
-	@printf "Notifications:    http://localhost:9080/notifications\n"
-	@printf "Zipkin tracing:   http://localhost:9411\n"
-
-apisix-dev:
-	$(APISIX_COMPOSE) up -d
-	@$(MAKE) apisix
-
-apisix-dev-down:
-	$(APISIX_COMPOSE) down
-
-apisix-dev-logs:
-	$(APISIX_COMPOSE) logs -f
-
-apisix-dev-ps:
-	$(APISIX_COMPOSE) ps
-
-apisix-gui:
-	@printf "APISIX GUI proxy:   http://localhost:9088\n"
-	@printf "APISIX Dashboard:   http://localhost:9181\n"
-	@printf "APISIX Admin API:   http://localhost:9180\n"
-	@printf "Zipkin tracing:     http://localhost:9411\n"
-	@printf "Auth service:       http://localhost:9088/auth\n"
-	@printf "Task tracker:       http://localhost:9088/tasks\n"
-	@printf "Task GraphQL:       http://localhost:9088/tasks/graphql\n"
-	@printf "Expense tracker:    http://localhost:9088/expenses\n"
-	@printf "Notifications:      http://localhost:9088/notifications\n"
-
-apisix-gui-up:
-	$(APISIX_GUI_COMPOSE) up -d
-	@$(MAKE) apisix-gui
-
-apisix-gui-down:
-	$(APISIX_GUI_COMPOSE) down
-
-apisix-gui-logs:
-	$(APISIX_GUI_COMPOSE) logs -f
-
-apisix-gui-ps:
-	$(APISIX_GUI_COMPOSE) ps
 
 swagger-auth:
 	docker run --rm -p 8081:8080 -e SWAGGER_JSON=/spec/openapi.yaml -v "$(CURDIR)/services/auth/docs/openapi.yaml:/spec/openapi.yaml:ro" swaggerapi/swagger-ui

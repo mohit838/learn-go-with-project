@@ -11,7 +11,7 @@ import (
 
 type userContextKey struct{}
 
-// RequireGatewayAuth trusts identity headers set by APISIX/Kong.
+// RequireGatewayAuth trusts identity headers set by Kong.
 //
 // The service does not parse client JWTs here. The gateway validates the token
 // and forwards only the user fields that services need for business logic.

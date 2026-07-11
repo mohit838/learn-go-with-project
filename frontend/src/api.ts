@@ -173,8 +173,6 @@ function normalizeBaseURL(value: string) {
 }
 
 function gatewayName(url: string) {
-  if (url.includes(':9088')) return 'APISIX GUI'
-  if (url.includes(':9080')) return 'APISIX'
   if (url.includes(':8000')) return 'Kong'
   return 'Gateway'
 }

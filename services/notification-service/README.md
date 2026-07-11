@@ -39,7 +39,7 @@ X-Tenant-Slug
 X-User-Role
 ```
 
-Kong/APISIX add those headers after validating the access token.
+Kong adds those headers after validating the access token.
 
 ## gRPC API
 

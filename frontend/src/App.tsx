@@ -833,7 +833,7 @@ function PageTitle({
 function GatewayBadge() {
   return (
     <Space size={6} wrap className="gateway-badge">
-      <Tag color={GATEWAY_NAME.includes('APISIX') ? 'geekblue' : 'cyan'}>{GATEWAY_NAME}</Tag>
+      <Tag color={GATEWAY_NAME === 'Kong' ? 'cyan' : 'default'}>{GATEWAY_NAME}</Tag>
       <Text type="secondary">{API_URL}</Text>
       <Text type="secondary">Zipkin {ZIPKIN_URL}</Text>
     </Space>

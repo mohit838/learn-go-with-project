@@ -13,7 +13,7 @@ import (
 
 // AuthGRPCClient is task-tracker's private client for auth service.
 //
-// Normal HTTP requests trust gateway headers after APISIX/Kong validates JWTs.
+// Normal HTTP requests trust gateway headers after Kong validates JWTs.
 // This client is for service-to-service questions that only auth can answer,
 // such as "give me user dashboard counts" or stricter future user checks.
 type AuthGRPCClient struct {

@@ -9,8 +9,8 @@ Client -> Gateway -> Auth issues JWT -> Gateway validates JWT -> Service
 ```
 
 Auth authenticates the user during login/register and issues tokens. After that,
-APISIX or Kong validates the access token at the gateway and forwards trusted
-identity headers to downstream services.
+Kong validates the access token at the gateway and forwards trusted identity
+headers to downstream services.
 
 Task-tracker does not validate client Bearer tokens directly. It trusts the
 gateway identity headers and keeps only business authorization checks, such as
@@ -44,7 +44,7 @@ Notification service:
 
 ## Important Security Rule
 
-Only APISIX, Kong, or another trusted internal gateway should set identity headers.
+Only Kong or another trusted internal gateway should set identity headers.
 Frontend clients must not be allowed to spoof `X-User-ID`, `X-Tenant-ID`, or
 `X-User-Role`.
 
@@ -54,7 +54,7 @@ upstream services. Services should still keep business authorization checks, suc
 
 ## Gateway Switch
 
-Both APISIX and Kong follow the same protected-route contract:
+Kong follows the protected-route contract:
 
 ```text
 Authorization: Bearer <access_token>
@@ -68,8 +68,6 @@ frontend base URL and gateway config:
 
 ```env
 VITE_API_URL=http://localhost:8000  # Kong
-VITE_API_URL=http://localhost:9080  # APISIX standalone
-VITE_API_URL=http://localhost:9088  # APISIX GUI mode
 ```
 
 ## gRPC
@@ -189,7 +187,7 @@ consumers:
         secret: replace_with_a_long_random_secret
 ```
 
-APISIX uses the same shared secret in its `jwt-auth` consumer config.
+Kong should use the same shared secret in its JWT configuration.
 
 ## Observability
 

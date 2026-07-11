@@ -20,8 +20,6 @@ proto/notification/v1/notification.proto
 HTTP: 8487
 gRPC: 8587
 Kong route: http://localhost:8000/notifications
-APISIX route: http://localhost:9080/notifications
-APISIX GUI route: http://localhost:9088/notifications
 ```
 
 ## Run It

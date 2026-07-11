@@ -103,69 +103,6 @@ guest@example.com      / admin123
 Roles are `superadmin`, `admin`, `owner`, `staff`, and `guest`. Task ownership
 for edit/delete still comes from the task row's `user_id`.
 
-## Development With APISIX
-
-APISIX is available beside Kong for learning gateway behavior.
-
-Standalone APISIX, YAML configured:
-
-```sh
-make apisix-dev
-```
-
-Standalone APISIX URLs:
-
-```text
-APISIX proxy:     http://localhost:9080
-Auth service:     http://localhost:9080/auth
-Task tracker:     http://localhost:9080/tasks
-Task GraphQL:     http://localhost:9080/tasks/graphql
-Expense tracker:  http://localhost:9080/expenses
-Notifications:    http://localhost:9080/notifications
-Zipkin tracing:   http://localhost:9411
-```
-
-APISIX with etcd and Dashboard:
-
-```sh
-make apisix-gui-up
-```
-
-APISIX GUI URLs:
-
-```text
-APISIX GUI proxy:   http://localhost:9088
-APISIX Dashboard:   http://localhost:9181
-APISIX Admin API:   http://localhost:9180
-Notifications:      http://localhost:9088/notifications
-Zipkin tracing:     http://localhost:9411
-```
-
-Dashboard login:
-
-```text
-username: admin
-password: admin
-```
-
-The official APISIX Dashboard plugin catalog can be unstable with the available
-dashboard image. For local plugin editing, use:
-
-```text
-apisix/plugin-manager.html
-```
-
-That helper is development-only because it uses the local Admin API key in the
-browser.
-
-If you change `apisix/config-gui.yaml`, restart GUI mode so APISIX reloads the
-gateway config:
-
-```sh
-make apisix-gui-down
-make apisix-gui-up
-```
-
 ## Frontend
 
 The frontend reads `VITE_API_URL`.
@@ -174,18 +111,6 @@ Use Kong:
 
 ```env
 VITE_API_URL=http://localhost:8000
-```
-
-Use standalone APISIX:
-
-```env
-VITE_API_URL=http://localhost:9080
-```
-
-Use APISIX GUI mode:
-
-```env
-VITE_API_URL=http://localhost:9088
 ```
 
 Run the frontend:
@@ -249,15 +174,14 @@ data, for example task-tracker asking auth for user stats.
 
 ## Gateway Observability
 
-Kong and APISIX both send gateway traces to Zipkin in local dev/prod-style
-compose:
+Kong sends gateway traces to Zipkin in local dev/prod-style compose:
 
 ```text
 http://localhost:9411
 ```
 
 Run one gateway stack at a time if you use the default Zipkin port. If you need
-Kong and APISIX running together, change one compose file's host port mapping.
+to customize ports, change the compose file's host port mapping.
 
 Show containers:
 
@@ -324,5 +248,3 @@ make migrate-rollback service=auth
   - `GET /health/minio`
 - Keep gateway admin ports local only:
   - Kong Admin API: `8001`
-  - APISIX Admin API: `9180`
-  - APISIX Dashboard: `9181`
